@@ -33,6 +33,7 @@ function ParamBar({ label, value }) {
 
 export default function Panel() {
   const fileRef = useRef()
+  const [collapsed, setCollapsed] = useState(false)
   const [text, setText] = useState('')
   const [dragOver, setDragOver] = useState(false)
 
@@ -81,13 +82,34 @@ export default function Panel() {
   }, [analysisResult, text, setGenerating, setRefImage])
 
   return (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="panel-title">SKELETAL SILK</div>
-        <div className="panel-sub">BIOMATERIAL ENGINE · V1</div>
-        <div className="panel-sub" style={{marginTop:2,opacity:0.4}}>ALI LIN · ALILINLAB.COM</div>
+    <>
+      <div
+        onClick={() => setCollapsed(c => !c)}
+        style={{
+          position: 'fixed', right: collapsed ? 0 : 220, top: '50%',
+          transform: 'translateY(-50%)',
+          width: 16, height: 48,
+          background: 'rgba(0,0,0,0.6)',
+          border: '0.5px solid rgba(255,255,255,0.1)',
+          borderRight: collapsed ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', zIndex: 20,
+          fontSize: '8px', color: 'rgba(255,255,255,0.4)',
+          transition: 'right 0.3s',
+          letterSpacing: 0,
+        }}
+      >
+        {collapsed ? '‹' : '›'}
       </div>
-
+      <div
+        className="panel"
+        style={{
+          opacity: collapsed ? 0 : 1,
+          pointerEvents: collapsed ? 'none' : 'auto',
+          transition: 'opacity 0.3s',
+          minWidth: 220,
+        }}
+      >
       <section className="panel-section">
         <div className="section-label">INPUT</div>
         <div
@@ -205,6 +227,7 @@ export default function Panel() {
           <div>SLIDERS → LIVE UNIFORMS</div>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   )
 }

@@ -24,7 +24,7 @@ export default function Scene() {
   return (
     <div style={{width:'100%',height:'100%',position:'relative'}} onMouseMove={handleMouseMove}>
       <Canvas
-        camera={{position:[0,0,2.8],fov:55}}
+        camera={{position:[0,0,5.8],fov:36}}
         gl={{antialias:true,alpha:false}}
         style={{background:'#000'}}
       >
