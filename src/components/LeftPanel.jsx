@@ -1,6 +1,6 @@
 export default function LeftPanel() {
   const s = {
-    fontFamily: 'Helvetica Neue,Helvetica,Arial,sans-serif',
+    fontFamily: 'DM Mono, Courier New, monospace',
     letterSpacing: '0.12em',
   }
 
@@ -9,9 +9,9 @@ export default function LeftPanel() {
       ...s,
       position:'absolute', top:0, left:0,
       width:220, height:'100%',
-      background:'rgba(6,6,6,0.82)',
-      backdropFilter:'blur(20px) saturate(180%)',
-      WebkitBackdropFilter:'blur(20px) saturate(180%)',
+      background:'rgba(6,6,6,0.72)',
+      backdropFilter:'blur(24px) saturate(160%)',
+      WebkitBackdropFilter:'blur(24px) saturate(160%)',
       borderRight:'0.5px solid rgba(255,255,255,0.15)',
       zIndex:10,
       display:'flex',

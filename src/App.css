@@ -3,25 +3,32 @@
   --bg:#000;--border:rgba(255,255,255,0.15);
   --text:rgba(255,255,255,0.85);--dim:rgba(255,255,255,0.40);
   --accent:rgba(255,255,255,0.9);--err:#ff3d3d;
-  --font:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --font:'DM Mono','Courier New',monospace;
   --size:9px;--track:rgba(255,255,255,0.12);--thumb:rgba(255,255,255,0.6);
 }
 html,body,#root{width:100%;height:100%;background:#000;overflow:hidden;
-  font-family:var(--font);font-size:var(--size);letter-spacing:0.12em;
+  font-family:var(--font);font-size:var(--size);letter-spacing:0.14em;
   -webkit-font-smoothing:antialiased;}
 
 /* Fullscreen layout */
 .app{position:relative;width:100vw;height:100vh}
-.canvas-pane{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.canvas-pane{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:0;
+}
 
 /* Floating panel — right side overlay */
 .panel-pane{
-  position:absolute;top:0;right:0;
+  position:absolute;
+  top:0;right:0;
   width:220px;height:100%;
-  background:rgba(8,8,8,0.75);
-  backdrop-filter:blur(20px) saturate(180%);
-  -webkit-backdrop-filter:blur(20px) saturate(180%);
-  border-left:0.5px solid rgba(255,255,255,0.15);
+  background:rgba(6,6,6,0.72);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-left:0.5px solid rgba(255,255,255,0.12);
   overflow-y:auto;scrollbar-width:none;
   z-index:10;
   display:flex;
@@ -35,7 +42,13 @@ html,body,#root{width:100%;height:100%;background:#000;overflow:hidden;
 .panel-title{font-size:11px;font-weight:500;letter-spacing:0.24em;color:#fff;line-height:1}
 .panel-sub{margin-top:4px;font-size:7.5px;letter-spacing:0.14em;color:rgba(255,255,255,0.4)}
 .panel-section{padding:22px 18px;border-bottom:0.5px solid rgba(255,255,255,0.1)}
-.section-label{font-size:7.5px;letter-spacing:0.2em;color:rgba(255,255,255,0.35);margin-bottom:14px}
+.section-label{
+  font-size:7px;
+  letter-spacing:0.28em;
+  color:rgba(255,255,255,0.3);
+  margin-bottom:14px;
+  text-transform:uppercase;
+}
 
 /* Drop zone — smaller */
 .drop-zone{position:relative;width:100%;height:80px;border:0.5px solid var(--border);
