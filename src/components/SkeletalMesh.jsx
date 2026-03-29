@@ -23,6 +23,7 @@ export default function SkeletalMesh() {
   const specular = useStore(s => s.specular)
   const color    = useStore(s => s.color)
   const mouse    = useStore(s => s.mouse)
+  const analysisHistory = useStore(s => s.analysisHistory)
 
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader:   vertGLSL,
@@ -37,6 +38,14 @@ export default function SkeletalMesh() {
       uMouseRadius: { value: 1.4 },
       uAITexture:   { value: placeholderTex },
       uAIBlend:     { value: 0.0 },
+      uRigidity2:   { value: 0.42 },
+      uFlow2:       { value: 0.55 },
+      uSpecular2:   { value: 0.70 },
+      uColor2:      { value: new THREE.Vector3(0.72, 0.60, 0.52) },
+      uRigidity3:   { value: 0.42 },
+      uFlow3:       { value: 0.55 },
+      uColor3:      { value: new THREE.Vector3(0.72, 0.60, 0.52) },
+      uMorphCycle:  { value: 0.0 },
     },
     side: THREE.DoubleSide,
   }), [placeholderTex])
@@ -47,6 +56,22 @@ export default function SkeletalMesh() {
     return () => { sharedMaterialRef.current = null }
   }, [material])
 
+  useEffect(() => {
+    if (analysisHistory.length >= 2) {
+      const s = analysisHistory[1]
+      material.uniforms.uRigidity2.value = s.rigidity
+      material.uniforms.uFlow2.value     = s.flow
+      material.uniforms.uSpecular2.value = s.specular
+      material.uniforms.uColor2.value.set(s.color[0], s.color[1], s.color[2])
+    }
+    if (analysisHistory.length >= 3) {
+      const s = analysisHistory[2]
+      material.uniforms.uRigidity3.value = s.rigidity
+      material.uniforms.uFlow3.value     = s.flow
+      material.uniforms.uColor3.value.set(s.color[0], s.color[1], s.color[2])
+    }
+  }, [analysisHistory, material])
+
   useEffect(() => { material.uniforms.uRigidity.value = rigidity }, [rigidity, material])
   useEffect(() => { material.uniforms.uFlow.value = flow }, [flow, material])
   useEffect(() => { material.uniforms.uSpecular.value = specular }, [specular, material])
@@ -54,7 +79,9 @@ export default function SkeletalMesh() {
   useEffect(() => { material.uniforms.uMouse.value.set(mouse[0], mouse[1]) }, [mouse, material])
 
   useFrame(({ clock }) => {
-    material.uniforms.uTime.value = clock.getElapsedTime()
+    const t = clock.getElapsedTime()
+    material.uniforms.uTime.value = t
+    material.uniforms.uMorphCycle.value = (Math.sin(t * 0.15) + 1.0) / 2.0
 
     // Fade out AI blend over time (texture influence decays)
     if (material.uniforms.uAIBlend.value > 0) {

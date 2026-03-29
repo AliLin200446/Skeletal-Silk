@@ -1,7 +1,10 @@
 uniform float uSpecular;
 uniform vec3  uColor;
+uniform vec3  uColor2;
+uniform vec3  uColor3;
 uniform float uRigidity;
 uniform float uTime;
+uniform float uMorphCycle;
 uniform sampler2D uAITexture;
 uniform float uAIBlend;
 
@@ -41,17 +44,21 @@ void main() {
   );
   vec3 silkSheen = mix(vec3(1.0), ird, silk * uSpecular * 0.5);
 
-  // Color zones: bone → ivory, silk → uColor with sheen
+  float morphA = smoothstep(0.0, 0.5, uMorphCycle);
+  float morphB = smoothstep(0.5, 1.0, uMorphCycle);
+  vec3 colorMix = mix(uColor, mix(uColor2, uColor3, morphB), morphA);
+
+  // Color zones: bone → ivory, silk → colorMix with sheen
   vec3 boneColor = vec3(0.82, 0.79, 0.74);
-  vec3 silkColor = uColor * silkSheen;
+  vec3 silkColor = colorMix * silkSheen;
   vec3 baseColor = mix(silkColor, boneColor, bone * 0.8);
 
   // Lighting assembly — keep shadows dark
   vec3 ambient = baseColor * 0.01;
   vec3 diffuse = baseColor * pow(d1, 1.8) * 0.5;
   vec3 fill    = baseColor * d2;
-  vec3 spec    = mix(uColor * 0.3 + 0.7, vec3(1.0), bone) * s1 * uSpecular * 0.8;
-  vec3 rimCol  = mix(uColor, vec3(0.9, 0.9, 1.0), 0.5) * rim;
+  vec3 spec    = mix(colorMix * 0.3 + 0.7, vec3(1.0), bone) * s1 * uSpecular * 0.8;
+  vec3 rimCol  = mix(colorMix, vec3(0.9, 0.9, 1.0), 0.5) * rim;
 
   vec3 col = ambient + diffuse + fill + spec + rimCol;
 

@@ -3,6 +3,11 @@
 uniform float uTime;
 uniform float uRigidity;
 uniform float uFlow;
+uniform float uRigidity2;
+uniform float uFlow2;
+uniform float uRigidity3;
+uniform float uFlow3;
+uniform float uMorphCycle;
 uniform vec2  uMouse;
 uniform float uMouseRadius;
 
@@ -65,20 +70,25 @@ float mouseBend(vec3 pos) {
 void main() {
   vUv = uv;
   vec3 pos = position;
-  float t = uTime*(0.3+uFlow*0.7);
+  // Interpolate flow across 3 states based on morph cycle
+  float morphA = smoothstep(0.0, 0.5, uMorphCycle);
+  float morphB = smoothstep(0.5, 1.0, uMorphCycle);
+  float flowMix    = mix(uFlow,    mix(uFlow2,    uFlow3,    morphB), morphA);
+  float rigidMix   = mix(uRigidity,mix(uRigidity2,uRigidity3,morphB), morphA);
+  float t = uTime*(0.3+flowMix*0.7);
   vec3 pFlow = pos*2.2 + vec3(t*0.4, t*0.25, t*0.15);
   vec3 pBone = pos*5.0 + vec3(t*0.1, -t*0.08, t*0.2);
 
   float silk = fbm(pFlow, 5);
-  float silkDisplace = (silk-0.5)*uFlow*0.10;
+  float silkDisplace = (silk-0.5)*flowMix*0.10;
   float boneRaw = ridgedMF(pBone, 5);
-  float bone = pow(boneRaw, 1.5+uRigidity*2.0);
-  float boneDisplace = bone*uRigidity*0.14;
+  float boneSharp = pow(boneRaw, 1.5+rigidMix*2.0);
+  float boneDisplace = boneSharp*rigidMix*0.14;
   float bend = mouseBend(pos);
   float totalD = silkDisplace + boneDisplace + bend;
   pos += normal*totalD;
 
-  vBone = bone;
+  vBone = boneSharp;
   vPosition = pos;
 
   float eps = 0.008;
@@ -88,10 +98,10 @@ void main() {
   vec3 pyFlow=py*2.2+vec3(t*0.4,t*0.25,t*0.15);
   vec3 pxBone=px*5.0+vec3(t*0.1,-t*0.08,t*0.2);
   vec3 pyBone=py*5.0+vec3(t*0.1,-t*0.08,t*0.2);
-  float silkX=(fbm(pxFlow,5)-0.5)*uFlow*0.10;
-  float silkY=(fbm(pyFlow,5)-0.5)*uFlow*0.10;
-  float boneX=pow(ridgedMF(pxBone,5),1.5+uRigidity*2.0)*uRigidity*0.14;
-  float boneY=pow(ridgedMF(pyBone,5),1.5+uRigidity*2.0)*uRigidity*0.14;
+  float silkX=(fbm(pxFlow,5)-0.5)*flowMix*0.10;
+  float silkY=(fbm(pyFlow,5)-0.5)*flowMix*0.10;
+  float boneX=pow(ridgedMF(pxBone,5),1.5+rigidMix*2.0)*rigidMix*0.14;
+  float boneY=pow(ridgedMF(pyBone,5),1.5+rigidMix*2.0)*rigidMix*0.14;
   vec3 dispX=px+normal*(silkX+boneX+mouseBend(px));
   vec3 dispY=py+normal*(silkY+boneY+mouseBend(py));
   vNormal = normalize(cross(dispX-pos, dispY-pos));

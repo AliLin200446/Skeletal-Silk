@@ -43,6 +43,7 @@ export default function Panel() {
   const refImage       = useStore(s => s.refImage)
   const isGenerating   = useStore(s => s.isGenerating)
   const color          = useStore(s => s.color)
+  const analysisHistory = useStore(s => s.analysisHistory)
 
   const setUploadedImage = useStore(s => s.setUploadedImage)
   const setAnalysing     = useStore(s => s.setAnalysing)
@@ -163,6 +164,29 @@ export default function Panel() {
           </div>
         )}
       </section>
+
+      {analysisHistory.length > 1 && (
+        <section className="panel-section">
+          <div className="section-label">MEMORY · {analysisHistory.length} STATES</div>
+          {analysisHistory.map((s, i) => (
+            <div key={s.timestamp} style={{
+              marginBottom: 8, opacity: 1 - i * 0.25,
+              borderLeft: `0.5px solid rgba(255,255,255,${0.3 - i * 0.1})`,
+              paddingLeft: 8,
+            }}>
+              <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)', marginBottom: 3 }}>
+                STATE {i + 1} {i === 0 ? '· CURRENT' : ''}
+              </div>
+              <div style={{ fontSize: '8px', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)' }}>
+                R:{s.rigidity.toFixed(2)} F:{s.flow.toFixed(2)} S:{s.specular.toFixed(2)}
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: '8px', letterSpacing: '0.14em', color: 'rgba(255,255,255,0.2)', marginTop: 4 }}>
+            MORPHING BETWEEN STATES →
+          </div>
+        </section>
+      )}
 
       <section className="panel-section">
         <div className="section-label">REFERENCE</div>
