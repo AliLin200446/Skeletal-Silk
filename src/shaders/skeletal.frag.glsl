@@ -58,8 +58,8 @@ void main() {
   // Subtle time-based breathing on specular only
   col += spec * sin(uTime * 0.4) * 0.03;
 
-  vec3 ai = texture2D(uAITexture, vUv).rgb;
-  col = mix(col, col + ai * 0.35, uAIBlend);
+  vec3 aiSample = texture2D(uAITexture, vUv).rgb;
+  col = mix(col, col * (1.0 + aiSample * 0.4), uAIBlend);
 
   // Gamma
   col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));

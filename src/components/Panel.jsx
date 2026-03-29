@@ -144,19 +144,25 @@ export default function Panel() {
         </div>
       </section>
 
-      {analysisResult && (
-        <section className="panel-section">
-          <div className="section-label">CLAUDE ANALYSIS</div>
-          <ParamBar label="RIGIDITY" value={analysisResult.rigidity} />
-          <ParamBar label="FLOW"     value={analysisResult.flow} />
-          <ParamBar label="SPECULAR" value={analysisResult.specular} />
-          <div className="color-row" style={{marginTop:10}}>
-            <span className="slider-label-text">DETECTED</span>
-            <div className="color-swatch" style={{background:colorHex}} />
-            <span className="color-hex">{colorHex.toUpperCase()}</span>
+      <section className="panel-section">
+        <div className="section-label">CLAUDE ANALYSIS</div>
+        {analysisResult ? (
+          <>
+            <ParamBar label="RIGIDITY" value={analysisResult.rigidity} />
+            <ParamBar label="FLOW"     value={analysisResult.flow} />
+            <ParamBar label="SPECULAR" value={analysisResult.specular} />
+            <div className="color-row" style={{marginTop:10}}>
+              <span className="slider-label-text">DETECTED</span>
+              <div className="color-swatch" style={{background:colorHex}} />
+              <span className="color-hex">{colorHex.toUpperCase()}</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.28)', lineHeight: 1.7 }}>
+            NO ANALYSIS YET — USE INPUT ABOVE (TEXT OR IMAGE + →)
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       <section className="panel-section">
         <div className="section-label">REFERENCE</div>

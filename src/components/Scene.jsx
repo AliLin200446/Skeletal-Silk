@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useStore } from '../store'
 import SkeletalMesh from './SkeletalMesh'
 import BoneParticles from './BoneParticles'
@@ -8,9 +8,8 @@ import { useAILoop } from '../hooks/useAILoop'
 
 export default function Scene() {
   const setMouse  = useStore(s => s.setMouse)
-  const glRef     = useRef()
   const [active, setActive] = useState(false)
-  const { start, stop, progress, generating } = useAILoop(glRef)
+  const { start, stop, progress, generating } = useAILoop()
 
   const handleMouseMove = useCallback((e) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -26,9 +25,8 @@ export default function Scene() {
     <div style={{width:'100%',height:'100%',position:'relative'}} onMouseMove={handleMouseMove}>
       <Canvas
         camera={{position:[0,0,2.8],fov:55}}
-        gl={{antialias:true,alpha:false,preserveDrawingBuffer:true}}
+        gl={{antialias:true,alpha:false}}
         style={{background:'#000'}}
-        onCreated={({gl}) => { glRef.current = gl }}
       >
         <ambientLight intensity={0.05}/>
         <SkeletalMesh/>

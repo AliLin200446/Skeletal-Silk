@@ -2,11 +2,13 @@ import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useStore } from '../store'
-import { useAITexture } from './AITextureOverlay'
 import vertGLSL from '../shaders/skeletal.vert.glsl?raw'
 import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
 
-function makeWhiteDataTexture() {
+// Module-level ref so useAILoop can write texture directly
+export const sharedMaterialRef = { current: null }
+
+function makePlaceholderTexture() {
   const data = new Uint8Array([255, 255, 255, 255])
   const tex = new THREE.DataTexture(data, 1, 1)
   tex.needsUpdate = true
@@ -14,9 +16,8 @@ function makeWhiteDataTexture() {
 }
 
 export default function SkeletalMesh() {
-  const meshRef = useRef()
-  const materialRef = useRef(null)
-  const whiteTex = useMemo(() => makeWhiteDataTexture(), [])
+  const meshRef  = useRef()
+  const placeholderTex = useMemo(() => makePlaceholderTexture(), [])
   const rigidity = useStore(s => s.rigidity)
   const flow     = useStore(s => s.flow)
   const specular = useStore(s => s.specular)
@@ -24,7 +25,7 @@ export default function SkeletalMesh() {
   const mouse    = useStore(s => s.mouse)
 
   const material = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: vertGLSL,
+    vertexShader:   vertGLSL,
     fragmentShader: fragGLSL,
     uniforms: {
       uTime:        { value: 0 },
@@ -34,32 +35,36 @@ export default function SkeletalMesh() {
       uColor:       { value: new THREE.Vector3(0.72, 0.60, 0.52) },
       uMouse:       { value: new THREE.Vector2(0, 0) },
       uMouseRadius: { value: 1.4 },
-      uAITexture:   { value: whiteTex },
-      uAIBlend:     { value: 0 },
+      uAITexture:   { value: placeholderTex },
+      uAIBlend:     { value: 0.0 },
     },
     side: THREE.DoubleSide,
-  }), [whiteTex])
+  }), [placeholderTex])
 
+  // Share material with AI loop
   useEffect(() => {
-    materialRef.current = material
+    sharedMaterialRef.current = material
+    return () => { sharedMaterialRef.current = null }
   }, [material])
 
-  useAITexture(materialRef)
-
-  useEffect(() => { material.uniforms.uRigidity.value = rigidity }, [rigidity])
-  useEffect(() => { material.uniforms.uFlow.value = flow }, [flow])
-  useEffect(() => { material.uniforms.uSpecular.value = specular }, [specular])
-  useEffect(() => { material.uniforms.uColor.value.set(color[0], color[1], color[2]) }, [color])
-  useEffect(() => { material.uniforms.uMouse.value.set(mouse[0], mouse[1]) }, [mouse])
+  useEffect(() => { material.uniforms.uRigidity.value = rigidity }, [rigidity, material])
+  useEffect(() => { material.uniforms.uFlow.value = flow }, [flow, material])
+  useEffect(() => { material.uniforms.uSpecular.value = specular }, [specular, material])
+  useEffect(() => { material.uniforms.uColor.value.set(color[0], color[1], color[2]) }, [color, material])
+  useEffect(() => { material.uniforms.uMouse.value.set(mouse[0], mouse[1]) }, [mouse, material])
 
   useFrame(({ clock }) => {
     material.uniforms.uTime.value = clock.getElapsedTime()
+
+    // Fade out AI blend over time (texture influence decays)
+    if (material.uniforms.uAIBlend.value > 0) {
+      material.uniforms.uAIBlend.value = Math.max(
+        0, material.uniforms.uAIBlend.value - 0.001
+      )
+    }
   })
 
-  // CRITICAL: IcosahedronGeometry — NOT PlaneGeometry
   const geometry = useMemo(() => new THREE.IcosahedronGeometry(1.6, 64), [])
 
-  return (
-    <mesh ref={meshRef} geometry={geometry} material={material} />
-  )
+  return <mesh ref={meshRef} geometry={geometry} material={material} />
 }

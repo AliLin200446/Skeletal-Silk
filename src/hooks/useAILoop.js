@@ -1,32 +1,17 @@
 import { useRef, useCallback, useEffect, useState } from 'react'
+import * as THREE from 'three'
 import { useStore } from '../store'
+import { sharedMaterialRef } from '../components/SkeletalMesh'
 
 const INTERVAL = 7000
 
-export function useAILoop(glRef) {
+export function useAILoop() {
   const intervalRef   = useRef(null)
   const countdownRef  = useRef(null)
   const isRunning     = useRef(false)
   const setRefImage   = useStore(s => s.setRefImage)
   const [progress,    setProgress]   = useState(0)
   const [generating,  setGenerating] = useState(false)
-
-  const captureFrame = useCallback(() => {
-    const canvas = glRef.current?.domElement
-    if (!canvas) return null
-    try {
-      // Crop to center square to reduce black border
-      const size = Math.min(canvas.width, canvas.height)
-      const offscreen = document.createElement('canvas')
-      offscreen.width = 512
-      offscreen.height = 512
-      const ctx = offscreen.getContext('2d')
-      const srcX = (canvas.width - size) / 2
-      const srcY = (canvas.height - size) / 2
-      ctx.drawImage(canvas, srcX, srcY, size, size, 0, 0, 512, 512)
-      return offscreen.toDataURL('image/jpeg', 0.85).split(',')[1]
-    } catch { return null }
-  }, [glRef])
 
   const startCountdown = useCallback(() => {
     clearInterval(countdownRef.current)
@@ -51,9 +36,8 @@ export function useAILoop(glRef) {
     setProgress(99)
 
     const key = import.meta.env.VITE_FAL_API_KEY
-    const frame = captureFrame()
 
-    if (!key || !frame) {
+    if (!key) {
       isRunning.current = false
       setGenerating(false)
       startCountdown()
@@ -69,7 +53,7 @@ export function useAILoop(glRef) {
     const prompt = `${description || 'biomorphic textile'}: ${structure}, macro photography, black background, ultra detailed`
 
     try {
-      const res = await fetch('https://fal.run/fal-ai/fast-lcm-diffusion/image-to-image', {
+      const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,15 +61,33 @@ export function useAILoop(glRef) {
         },
         body: JSON.stringify({
           prompt,
-          image_url: `data:image/jpeg;base64,${frame}`,
-          strength: 0.4,
-          num_inference_steps: 6,
+          image_size: 'square_hd',
+          num_images: 1,
+          num_inference_steps: 4,
         }),
       })
       if (res.ok) {
         const data = await res.json()
         const url = data?.images?.[0]?.url
-        if (url) { setRefImage(url); setProgress(100) }
+        if (url) {
+          setRefImage(url)
+          setProgress(100)
+          // Load Fal.ai image as texture and blend into mesh
+          const loader = new THREE.TextureLoader()
+          loader.load(url, (tex) => {
+            const mat = sharedMaterialRef.current
+            if (!mat) return
+            tex.colorSpace = THREE.SRGBColorSpace
+            mat.uniforms.uAITexture.value = tex
+            // Fade in blend value
+            let blend = 0
+            const fadeIn = setInterval(() => {
+              blend = Math.min(blend + 0.02, 0.25)
+              if (mat.uniforms.uAIBlend) mat.uniforms.uAIBlend.value = blend
+              if (blend >= 0.25) clearInterval(fadeIn)
+            }, 30)
+          })
+        }
       } else {
         console.error('Fal.ai:', res.status, await res.text())
       }
@@ -96,7 +98,7 @@ export function useAILoop(glRef) {
       setGenerating(false)
       startCountdown()
     }
-  }, [captureFrame, setRefImage, startCountdown])
+  }, [setRefImage, startCountdown])
 
   const start = useCallback(() => {
     if (intervalRef.current) return
