@@ -1,53 +1,98 @@
-const SYSTEM_PROMPT = `
-You are a material analysis engine for a biomorphic textile simulation.
-Return ONLY a JSON object:
-{ "rigidity": 0.0-1.0, "flow": 0.0-1.0, "specular": 0.0-1.0, "color": [r,g,b] }
-Heuristics:
-- Silk/satin: rigidity 0.1-0.25, flow 0.75-0.95, specular 0.75-0.95
-- Chiffon: rigidity 0.05-0.15, flow 0.85-1.0, specular 0.5-0.75
-- Linen/cotton: rigidity 0.40-0.60, flow 0.30-0.50, specular 0.05-0.25
-- Velvet: rigidity 0.30-0.50, flow 0.40-0.60, specular 0.02-0.15
-- Brocade: rigidity 0.70-0.90, flow 0.15-0.35, specular 0.40-0.65
-- Leather: rigidity 0.65-0.85, flow 0.05-0.20, specular 0.45-0.75
-- Bone: rigidity 0.88-1.0, flow 0.02-0.15, specular 0.30-0.60
-Output ONLY valid JSON. No markdown.
-`.trim()
-
-export async function analyseFabric({ imageBase64, mediaType='image/jpeg', description }) {
-  const key = import.meta.env.VITE_ANTHROPIC_API_KEY
-  if (!key) throw new Error('VITE_ANTHROPIC_API_KEY not set')
-  const userContent = []
-  if (imageBase64) userContent.push({ type:'image', source:{ type:'base64', media_type:mediaType, data:imageBase64 }})
-  userContent.push({ type:'text', text: description ? `Analyse fabric: "${description}". Return JSON.` : 'Analyse this fabric image. Return JSON.' })
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': key,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true',
-    },
-    body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:256, system:SYSTEM_PROMPT, messages:[{role:'user',content:userContent}] }),
-  })
-  if (!res.ok) { const e=await res.json().catch(()=>{}); throw new Error(e?.error?.message??`API ${res.status}`) }
-  const data = await res.json()
-  const raw = data.content?.find(b=>b.type==='text')?.text??'{}'
-  let parsed
-  try { parsed = JSON.parse(raw.replace(/```json|```/g,'').trim()) }
-  catch { throw new Error('Invalid JSON: '+raw.slice(0,80)) }
-  const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,Number(v)||0))
-  return {
-    rigidity: clamp(parsed.rigidity,0,1), flow: clamp(parsed.flow,0,1),
-    specular: clamp(parsed.specular,0,1),
-    color: Array.isArray(parsed.color) ? parsed.color.map(c=>clamp(c,0,1)) : [0.72,0.60,0.52],
+// Contract violation (non-JSON / bad fields) — distinct from network errors
+// so the caller can fall back to the last valid parameter set.
+export class InvalidAnalysisError extends Error {
+  constructor(msg) {
+    super(msg)
+    this.name = 'InvalidAnalysisError'
   }
 }
 
-export function fileToBase64(file) {
-  return new Promise((res,rej)=>{
-    const r=new FileReader()
-    r.onload=()=>{ const [h,d]=r.result.split(','); res({ base64:d, mediaType:h.match(/:(.*?);/)?.[1]??'image/jpeg' }) }
-    r.onerror=()=>rej(new Error('read failed'))
-    r.readAsDataURL(file)
+const clamp01 = (n) => Math.max(0, Math.min(1, n))
+const isNum = (v) => typeof v === 'number' && Number.isFinite(v)
+
+// Validation layer: rigidity/flow/specular must be finite numbers,
+// color must be a 3-array of finite numbers; values are clamped to [0,1].
+export function validateParams(parsed) {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new InvalidAnalysisError('ANALYSIS RESPONSE IS NOT AN OBJECT')
+  }
+  for (const key of ['rigidity', 'flow', 'specular']) {
+    if (!isNum(parsed[key])) throw new InvalidAnalysisError(`MISSING OR NON-NUMERIC "${key.toUpperCase()}"`)
+  }
+  if (!Array.isArray(parsed.color) || parsed.color.length !== 3 || !parsed.color.every(isNum)) {
+    throw new InvalidAnalysisError('INVALID "COLOR" — EXPECTED [r,g,b]')
+  }
+  return {
+    rigidity: clamp01(parsed.rigidity),
+    flow: clamp01(parsed.flow),
+    specular: clamp01(parsed.specular),
+    color: parsed.color.map(clamp01),
+  }
+}
+
+export async function analyseFabric({ imageBase64, mediaType = 'image/jpeg', description }) {
+  let res
+  try {
+    res = await fetch('/api/analyse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, mediaType, description }),
+    })
+  } catch {
+    throw new Error('ANALYSIS UNREACHABLE — CHECK CONNECTION OR TRY A PRESET')
+  }
+  if (!res.ok) {
+    if (res.status === 429) throw new Error('ANALYSIS RATE LIMITED — TRY AGAIN SHORTLY')
+    if (res.status === 503) throw new Error('ANALYSIS OFFLINE — TRY A PRESET')
+    if (res.status === 413) throw new Error('IMAGE TOO LARGE — TRY A SMALLER PHOTO')
+    throw new Error('ANALYSIS FAILED — TRY AGAIN OR USE A PRESET')
+  }
+  let parsed
+  try {
+    parsed = await res.json()
+  } catch {
+    throw new InvalidAnalysisError('ANALYSIS RESPONSE IS NOT JSON')
+  }
+  return validateParams(parsed)
+}
+
+const MAX_EDGE = 1024
+const JPEG_QUALITY = 0.8
+
+// Shared downscale path — keeps payloads well under serverless body limits.
+function imageToBase64(img) {
+  const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(img.width * scale)
+  canvas.height = Math.round(img.height * scale)
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+  const dataUrl = canvas.toDataURL('image/jpeg', JPEG_QUALITY)
+  return { base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' }
+}
+
+function loadImage(src, cleanup) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      cleanup?.()
+      resolve(img)
+    }
+    img.onerror = () => {
+      cleanup?.()
+      reject(new Error('COULD NOT READ IMAGE — TRY A DIFFERENT FILE'))
+    }
+    img.src = src
   })
+}
+
+export async function fileToBase64(file) {
+  const url = URL.createObjectURL(file)
+  const img = await loadImage(url, () => URL.revokeObjectURL(url))
+  return imageToBase64(img)
+}
+
+// Preset swatches go through the exact same downscale + analyse path as uploads.
+export async function imageUrlToBase64(url) {
+  const img = await loadImage(url)
+  return imageToBase64(img)
 }

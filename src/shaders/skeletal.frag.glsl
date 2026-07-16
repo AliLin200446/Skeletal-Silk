@@ -5,8 +5,6 @@ uniform vec3  uColor3;
 uniform float uRigidity;
 uniform float uTime;
 uniform float uMorphCycle;
-uniform sampler2D uAITexture;
-uniform float uAIBlend;
 
 varying vec3  vNormal;
 varying vec3  vPosition;
@@ -64,9 +62,6 @@ void main() {
 
   // Subtle time-based breathing on specular only
   col += spec * sin(uTime * 0.4) * 0.03;
-
-  vec3 aiSample = texture2D(uAITexture, vUv).rgb;
-  col = mix(col, col * (1.0 + aiSample * 0.4), uAIBlend);
 
   // Gamma
   col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));

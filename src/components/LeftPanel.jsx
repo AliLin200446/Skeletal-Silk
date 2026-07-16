@@ -42,7 +42,7 @@ export default function LeftPanel() {
           <div style={{fontSize:7.5,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',marginBottom:14}}>
             CONCEPT
           </div>
-          <div style={{fontSize:8.5,letterSpacing:'0.04em',color:'rgba(255,255,255,0.6)',lineHeight:1.8}}>
+          <div style={{fontSize:13,letterSpacing:'0.04em',color:'rgba(255,255,255,0.6)',lineHeight:1.8}}>
             An AI-driven biomorphic textile engine. Upload a fabric — Claude Vision analyses material properties and maps them to GLSL shader uniforms, generating a living 3D form where silk grows bone structure in real time.
           </div>
         </div>
@@ -54,17 +54,16 @@ export default function LeftPanel() {
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             {[
-              ['01', 'INPUT',    'Upload fabric or describe material'],
+              ['01', 'INPUT',    'Pick a preset, upload fabric, or describe material'],
               ['02', 'ANALYSE',  'Claude Vision → 4 material parameters'],
               ['03', 'RENDER',   'GLSL maps parameters to biomorphic form'],
-              ['04', 'GENERATE', 'Fal.ai produces AI reference every 7s'],
-              ['05', 'MORPH',    'Mesh interpolates last 3 material states'],
+              ['04', 'MORPH',    'Mesh interpolates last 3 material states'],
             ].map(([n, label, desc]) => (
               <div key={n} style={{display:'flex',gap:10,alignItems:'flex-start'}}>
                 <div style={{fontSize:7.5,color:'rgba(255,255,255,0.18)',flexShrink:0,marginTop:1,width:14}}>{n}</div>
                 <div>
                   <div style={{fontSize:7.5,letterSpacing:'0.16em',color:'rgba(255,255,255,0.55)',marginBottom:3}}>{label}</div>
-                  <div style={{fontSize:8,letterSpacing:'0.03em',color:'rgba(255,255,255,0.3)',lineHeight:1.6}}>{desc}</div>
+                  <div style={{fontSize:11,letterSpacing:'0.03em',color:'rgba(255,255,255,0.65)',lineHeight:1.6}}>{desc}</div>
                 </div>
               </div>
             ))}
@@ -82,7 +81,6 @@ export default function LeftPanel() {
               ['SCROLL',  'Zoom'],
               ['MOUSE',   'Bend surface'],
               ['SLIDERS', 'Live GLSL uniforms'],
-              ['AI LOOP', 'Fal.ai generation cycle'],
             ].map(([k,v]) => (
               <div key={k} style={{display:'flex',justifyContent:'space-between'}}>
                 <span style={{fontSize:7.5,letterSpacing:'0.14em',color:'rgba(255,255,255,0.5)'}}>{k}</span>
@@ -94,7 +92,7 @@ export default function LeftPanel() {
 
         {/* Credit */}
         <div style={{paddingTop:32,paddingBottom:28}}>
-          <div style={{fontSize:7.5,letterSpacing:'0.14em',color:'rgba(255,255,255,0.2)',lineHeight:1.8}}>
+          <div style={{fontSize:7.5,letterSpacing:'0.14em',color:'rgba(255,255,255,0.45)',lineHeight:1.8}}>
             ALI LIN · NYU IMA 2026<br/>
             ALILINLAB.COM
           </div>

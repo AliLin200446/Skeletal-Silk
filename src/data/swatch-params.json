@@ -1,0 +1,6 @@
+{
+  "silk":    { "rigidity": 0.18, "flow": 0.88, "specular": 0.86, "color": [0.88, 0.84, 0.8] },
+  "denim":   { "rigidity": 0.55, "flow": 0.35, "specular": 0.15, "color": [0.2, 0.27, 0.37] },
+  "leather": { "rigidity": 0.78, "flow": 0.1,  "specular": 0.58, "color": [0.36, 0.16, 0.12] },
+  "linen":   { "rigidity": 0.48, "flow": 0.4,  "specular": 0.12, "color": [0.78, 0.74, 0.66] }
+}

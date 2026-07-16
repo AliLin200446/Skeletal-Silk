@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from 'react'
 import { useStore } from '../store'
-import { analyseFabric, fileToBase64 } from '../utils/analyseFabric'
-import { generateRefImage } from '../utils/generateRef'
+import { analyseFabric, fileToBase64, imageUrlToBase64, InvalidAnalysisError } from '../utils/analyseFabric'
+import { PRESETS } from '../data/presets'
 
 function Slider({ label, storeKey }) {
   const val = useStore(s => s[storeKey])
@@ -31,18 +31,32 @@ function ParamBar({ label, value }) {
   )
 }
 
+const SOURCE_TAG = {
+  LIVE: '● LIVE',
+  CACHED: '◌ CACHED',
+  FALLBACK: '△ FALLBACK',
+}
+
+const SOURCE_TITLE = {
+  LIVE: 'parameters from live Claude Vision response',
+  CACHED: 'parameters from cached analysis',
+  FALLBACK: 'last valid parameters kept — invalid response rejected',
+}
+
 export default function Panel() {
   const fileRef = useRef()
   const [collapsed, setCollapsed] = useState(false)
   const [text, setText] = useState('')
   const [dragOver, setDragOver] = useState(false)
+  // Provenance of the current parameters + the exact JSON payload applied.
+  // Initial values mirror the silk cached params seeded in the store.
+  const [source, setSource] = useState('CACHED')
+  const [rawJson, setRawJson] = useState(() => JSON.stringify(PRESETS[0].params, null, 2))
 
   const uploadedImage  = useStore(s => s.uploadedImage)
   const analysisResult = useStore(s => s.analysisResult)
   const isAnalysing    = useStore(s => s.isAnalysing)
   const analysisError  = useStore(s => s.analysisError)
-  const refImage       = useStore(s => s.refImage)
-  const isGenerating   = useStore(s => s.isGenerating)
   const color          = useStore(s => s.color)
   const analysisHistory = useStore(s => s.analysisHistory)
 
@@ -50,36 +64,65 @@ export default function Panel() {
   const setAnalysing     = useStore(s => s.setAnalysing)
   const applyAnalysis    = useStore(s => s.applyAnalysis)
   const setAnalysisError = useStore(s => s.setAnalysisError)
-  const setRefImage      = useStore(s => s.setRefImage)
-  const setGenerating    = useStore(s => s.setGenerating)
   const setDescription   = useStore(s => s.setDescription)
 
   const colorHex = '#' + color.map(c => Math.round(c * 255).toString(16).padStart(2,'0')).join('')
 
+  const applyWithJson = useCallback((params, src) => {
+    applyAnalysis(params)
+    setRawJson(JSON.stringify(params, null, 2))
+    setSource(src)
+  }, [applyAnalysis])
+
   const runAnalysis = useCallback(async (params) => {
     setAnalysing(true)
-    try { applyAnalysis(await analyseFabric(params)) }
-    catch (err) { setAnalysisError(err.message) }
-  }, [setAnalysing, applyAnalysis, setAnalysisError])
+    try {
+      applyWithJson(await analyseFabric(params), 'LIVE')
+    } catch (err) {
+      if (err instanceof InvalidAnalysisError) {
+        // Contract violation: keep the last valid parameter set, just flag it
+        setAnalysing(false)
+        setSource('FALLBACK')
+      } else {
+        setAnalysisError(err.message)
+      }
+    }
+  }, [setAnalysing, applyWithJson, setAnalysisError])
 
   const handleFile = useCallback(async (file) => {
     if (!file || !file.type.startsWith('image/')) return
-    const { base64, mediaType } = await fileToBase64(file)
-    setUploadedImage(`data:${mediaType};base64,${base64}`)
-    await runAnalysis({ imageBase64: base64, mediaType, description: text })
-  }, [text, setUploadedImage, runAnalysis])
+    try {
+      const { base64, mediaType } = await fileToBase64(file)
+      setUploadedImage(`data:${mediaType};base64,${base64}`)
+      await runAnalysis({ imageBase64: base64, mediaType, description: text })
+    } catch (err) {
+      setAnalysisError(err.message)
+    }
+  }, [text, setUploadedImage, runAnalysis, setAnalysisError])
 
   const handleDrop = useCallback(async (e) => {
     e.preventDefault(); setDragOver(false)
     await handleFile(e.dataTransfer.files?.[0])
   }, [handleFile])
 
-  const handleGenerateRef = useCallback(async () => {
-    setGenerating(true)
-    try { setRefImage(await generateRefImage(analysisResult, text)) }
-    catch (err) { console.error('Fal.ai:', err.message) }
-    finally { setGenerating(false) }
-  }, [analysisResult, text, setGenerating, setRefImage])
+  // Swatch: cached params apply instantly, then the swatch image runs through
+  // the same downscale + analyse pipeline as an upload. Live result silently
+  // replaces the cache (LIVE); API failure keeps the cache (CACHED); a
+  // contract violation keeps the last valid set (FALLBACK).
+  const handlePreset = useCallback(async (preset) => {
+    setText('')
+    setDescription('')
+    setUploadedImage(preset.image)
+    applyWithJson(preset.params, 'CACHED')
+    setAnalysing(true)
+    try {
+      const { base64, mediaType } = await imageUrlToBase64(preset.image)
+      applyWithJson(await analyseFabric({ imageBase64: base64, mediaType }), 'LIVE')
+    } catch (err) {
+      setAnalysing(false)
+      setSource(err instanceof InvalidAnalysisError ? 'FALLBACK' : 'CACHED')
+    }
+  }, [setDescription, setUploadedImage, applyWithJson, setAnalysing])
 
   return (
     <>
@@ -110,6 +153,18 @@ export default function Panel() {
           minWidth: 220,
         }}
       >
+      <section className="panel-section">
+        <div className="section-label">SWATCHES</div>
+        <div className="preset-row">
+          {PRESETS.map(p => (
+            <button key={p.id} className="preset" onClick={() => handlePreset(p)} disabled={isAnalysing}>
+              <img className="preset-swatch" src={p.image} alt={`${p.label} swatch`} />
+              <span className="preset-label">{p.label}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="panel-section">
         <div className="section-label">INPUT</div>
         <div
@@ -168,7 +223,15 @@ export default function Panel() {
       </section>
 
       <section className="panel-section">
-        <div className="section-label">CLAUDE ANALYSIS</div>
+        <div className="section-label">
+          CLAUDE ANALYSIS
+          {source && (
+            <span title={SOURCE_TITLE[source]}
+              style={{ float:'right', color:'rgba(255,255,255,0.45)', letterSpacing:'0.2em' }}>
+              {SOURCE_TAG[source]}
+            </span>
+          )}
+        </div>
         {analysisResult ? (
           <>
             <ParamBar label="RIGIDITY" value={analysisResult.rigidity} />
@@ -179,10 +242,18 @@ export default function Panel() {
               <div className="color-swatch" style={{background:colorHex}} />
               <span className="color-hex">{colorHex.toUpperCase()}</span>
             </div>
+            {rawJson && (
+              <>
+                <pre className="raw-json">{rawJson}</pre>
+                <div className="uniform-map">
+                  rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.28)', lineHeight: 1.7 }}>
-            NO ANALYSIS YET — USE INPUT ABOVE (TEXT OR IMAGE + →)
+            NO ANALYSIS YET — PICK A SWATCH OR USE INPUT ABOVE
           </div>
         )}
       </section>
@@ -209,14 +280,6 @@ export default function Panel() {
           </div>
         </section>
       )}
-
-      <section className="panel-section">
-        <div className="section-label">REFERENCE</div>
-        <button className="btn full-width" onClick={handleGenerateRef} disabled={isGenerating}>
-          {isGenerating ? 'GENERATING...' : 'GENERATE VIA FAL.AI'}
-        </button>
-        {refImage && <img src={refImage} alt="reference" className="ref-image" />}
-      </section>
 
       <section className="panel-section">
         <div className="section-label">INTERACTION</div>

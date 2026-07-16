@@ -5,19 +5,8 @@ import { useStore } from '../store'
 import vertGLSL from '../shaders/skeletal.vert.glsl?raw'
 import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
 
-// Module-level ref so useAILoop can write texture directly
-export const sharedMaterialRef = { current: null }
-
-function makePlaceholderTexture() {
-  const data = new Uint8Array([255, 255, 255, 255])
-  const tex = new THREE.DataTexture(data, 1, 1)
-  tex.needsUpdate = true
-  return tex
-}
-
 export default function SkeletalMesh() {
   const meshRef  = useRef()
-  const placeholderTex = useMemo(() => makePlaceholderTexture(), [])
   const rigidity = useStore(s => s.rigidity)
   const flow     = useStore(s => s.flow)
   const specular = useStore(s => s.specular)
@@ -36,8 +25,6 @@ export default function SkeletalMesh() {
       uColor:       { value: new THREE.Vector3(0.72, 0.60, 0.52) },
       uMouse:       { value: new THREE.Vector2(0, 0) },
       uMouseRadius: { value: 1.4 },
-      uAITexture:   { value: placeholderTex },
-      uAIBlend:     { value: 0.0 },
       uRigidity2:   { value: 0.42 },
       uFlow2:       { value: 0.55 },
       uSpecular2:   { value: 0.70 },
@@ -48,13 +35,7 @@ export default function SkeletalMesh() {
       uMorphCycle:  { value: 0.0 },
     },
     side: THREE.DoubleSide,
-  }), [placeholderTex])
-
-  // Share material with AI loop
-  useEffect(() => {
-    sharedMaterialRef.current = material
-    return () => { sharedMaterialRef.current = null }
-  }, [material])
+  }), [])
 
   useEffect(() => {
     if (analysisHistory.length >= 2) {
@@ -82,13 +63,6 @@ export default function SkeletalMesh() {
     const t = clock.getElapsedTime()
     material.uniforms.uTime.value = t
     material.uniforms.uMorphCycle.value = (Math.sin(t * 0.15) + 1.0) / 2.0
-
-    // Fade out AI blend over time (texture influence decays)
-    if (material.uniforms.uAIBlend.value > 0) {
-      material.uniforms.uAIBlend.value = Math.max(
-        0, material.uniforms.uAIBlend.value - 0.001
-      )
-    }
   })
 
   const geometry = useMemo(() => new THREE.IcosahedronGeometry(1.6, 64), [])

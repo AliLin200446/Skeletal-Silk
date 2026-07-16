@@ -1,13 +1,18 @@
 import { create } from 'zustand'
+import SWATCH_PARAMS from '../data/swatch-params.json'
+
+// First paint is never an empty state: the silk swatch's cached parameters
+// are the initial state, so the full form renders before any interaction.
+const INITIAL = SWATCH_PARAMS.silk
 
 export const useStore = create((set, get) => ({
-  rigidity: 0.42, flow: 0.55, specular: 0.70,
-  color: [0.72, 0.60, 0.52],
+  rigidity: INITIAL.rigidity, flow: INITIAL.flow, specular: INITIAL.specular,
+  color: INITIAL.color,
   mouse: [0, 0],
   uploadedImage: null, description: '',
-  analysisResult: null, analysisHistory: [],
+  analysisResult: INITIAL,
+  analysisHistory: [{ ...INITIAL, timestamp: 0 }],
   isAnalysing: false, analysisError: null,
-  refImage: null, isGenerating: false,
 
   setUniform: (key, val) => set({ [key]: val }),
   setMouse: (xy) => set({ mouse: xy }),
@@ -38,6 +43,4 @@ export const useStore = create((set, get) => ({
 
   setAnalysing:     (v) => set({ isAnalysing: v, analysisError: null }),
   setAnalysisError: (e) => set({ analysisError: e, isAnalysing: false }),
-  setRefImage:      (url) => set({ refImage: url }),
-  setGenerating:    (v) => set({ isGenerating: v }),
 }))
