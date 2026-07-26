@@ -151,6 +151,20 @@ html,body,#root{width:100%;height:100%;background:#000;overflow:hidden;
 .uniform-map-label{margin-top:8px;font-size:9px;letter-spacing:0.02em;
   color:rgba(255,255,255,0.5);line-height:1.5}
 
+/* Tested-on evidence rows */
+.tested-head,.tested-row{display:grid;grid-template-columns:1fr 30px 30px 30px;
+  gap:7px;align-items:baseline}
+.tested-head{font-size:9px;letter-spacing:0.06em;color:rgba(255,255,255,0.35);
+  margin-bottom:5px}
+.tested-head span:not(:first-child),.tested-row span:not(:first-child){
+  text-align:right;font-variant-numeric:tabular-nums}
+.tested-row{font-size:9px;color:rgba(255,255,255,0.8);margin-bottom:6px}
+.tested-label{display:flex;flex-direction:column;letter-spacing:0.1em}
+.tested-label em{font-style:normal;font-size:9px;letter-spacing:0.02em;
+  color:rgba(255,255,255,0.45)}
+.tested-pending{margin-top:2px;font-size:9px;letter-spacing:0.02em;
+  color:rgba(255,255,255,0.45);line-height:1.5}
+
 /* Raw contract payload */
 .raw-json{margin-top:12px;padding:8px;border:0.5px solid var(--border);
   font-family:var(--font);font-size:7.5px;line-height:1.7;letter-spacing:0.04em;

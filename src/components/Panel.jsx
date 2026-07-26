@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react'
 import { useStore } from '../store'
 import { analyseFabric, fileToBase64, imageUrlToBase64, InvalidAnalysisError } from '../utils/analyseFabric'
 import { PRESETS } from '../data/presets'
+import TESTED_ON from '../data/tested-on.json'
 
 function Slider({ label, storeKey }) {
   const val = useStore(s => s[storeKey])
@@ -310,6 +311,29 @@ export default function Panel() {
             NO ANALYSIS YET — PICK A SWATCH OR USE INPUT ABOVE
           </div>
         )}
+      </section>
+
+      {/* Two photographs of similar colour but opposite structure. Divergent
+          numbers are the evidence it reads properties rather than converging.
+          Values are unedited API output — see data/tested-on.json. */}
+      <section className="panel-section">
+        <div className="section-label">TESTED ON</div>
+        <div className="tested-head">
+          <span />
+          <span>RIG</span><span>FLW</span><span>SPC</span>
+        </div>
+        {TESTED_ON.readings.map((r) => (
+          <div className="tested-row" key={r.label}>
+            <span className="tested-label">{r.label}<em>{r.note}</em></span>
+            <span>{r.rigidity.toFixed(2)}</span>
+            <span>{r.flow.toFixed(2)}</span>
+            <span>{r.specular.toFixed(2)}</span>
+          </div>
+        ))}
+        <div className="tested-pending">
+          Swatch rows pending real fabric photographs — the placeholders are
+          flat colour and read alike.
+        </div>
       </section>
 
       {analysisHistory.length > 1 && (

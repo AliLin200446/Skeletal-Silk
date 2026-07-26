@@ -1,0 +1,8 @@
+{
+  "_provenance": "Unedited readings from the deployed /api/analyse endpoint, 2026-07-26. Each row is one photograph the tool had never seen. Both subjects are in the same red hue family and differ mainly in physical structure, so divergent numbers indicate the model is reading properties rather than averaging colour.",
+  "readings": [
+    { "label": "RED KNIT", "note": "soft textile", "rigidity": 0.08, "flow": 0.92, "specular": 0.65 },
+    { "label": "PIGMENTED WOOD", "note": "hard, matte", "rigidity": 0.92, "flow": 0.08, "specular": 0.45 }
+  ],
+  "_pendingReason": "The four swatch images are solid-colour placeholders, not fabric photographs. Measured twice, silk and linen return byte-identical values (0.48/0.42/0.12) because there is no weave to read. Their rows are withheld until real photographs replace the placeholders."
+}
