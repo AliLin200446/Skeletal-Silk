@@ -70,10 +70,10 @@ float mouseBend(vec3 pos) {
 // Cloth reads as two scales at once: broad soft folds that catch the light,
 // and a fine weave over the top. One low-frequency fbm plus one high.
 float silkHeight(vec3 p, float t, float flowMix) {
-  vec3 pFold  = p*1.7 + vec3(t*0.40, t*0.25, t*0.15);
+  vec3 pFold  = p*1.3 + vec3(t*0.40, t*0.25, t*0.15);
   vec3 pWeave = p*7.5 + vec3(t*0.50, t*0.30, t*0.20);
-  float fold  = (fbm(pFold, 4) - 0.5) * 0.115;
-  float weave = (fbm(pWeave, 3) - 0.5) * 0.020;
+  float fold  = (fbm(pFold, 4) - 0.5) * 0.055;
+  float weave = (fbm(pWeave, 3) - 0.5) * 0.012;
   return (fold + weave) * flowMix;
 }
 
@@ -107,14 +107,23 @@ void main() {
   pos += normal * surfaceHeight(position, t, flowMix, rigidMix);
 
   vBone = boneSharpness(position, t, rigidMix);
-  vPosition = pos;
 
   float eps = 0.008;
   vec3 px = position+vec3(eps,0,0);
   vec3 py = position+vec3(0,eps,0);
   vec3 dispX = px + normal*surfaceHeight(px, t, flowMix, rigidMix);
   vec3 dispY = py + normal*surfaceHeight(py, t, flowMix, rigidMix);
-  vNormal = normalize(cross(dispX-pos, dispY-pos));
+  vec3 objectNormal = normalize(cross(dispX-pos, dispY-pos));
 
-  gl_Position = projectionMatrix*modelViewMatrix*vec4(pos,1.0);
+  // Lighting has to happen in view space. vPosition previously carried the
+  // OBJECT-space position, so the fragment shader's view vector -vPosition
+  // pointed at the sphere's own centre — almost exactly -N. That made
+  // dot(N,V) constant: the rim term evaluated to 1.0 across the whole
+  // surface (a flat wash that greyed out every colour) and the specular
+  // half-vector went negative, so the highlight was zero everywhere.
+  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+  vPosition = mvPosition.xyz;
+  vNormal   = normalize(normalMatrix * objectNormal);
+
+  gl_Position = projectionMatrix * mvPosition;
 }

@@ -12,7 +12,6 @@ export default function SkeletalMesh() {
   const specular = useStore(s => s.specular)
   const color    = useStore(s => s.color)
   const mouse    = useStore(s => s.mouse)
-  const analysisHistory = useStore(s => s.analysisHistory)
 
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader:   vertGLSL,
@@ -37,32 +36,37 @@ export default function SkeletalMesh() {
     side: THREE.DoubleSide,
   }), [])
 
+  // The sample shows the material you selected, and only that one. The three
+  // morph slots previously carried the last three analyses and uMorphCycle
+  // cross-faded between them on a slow sine, so the surface rendered a
+  // rotating average of recent selections — pick leather after silk and you
+  // got neither. That was the art piece's "temporal memory"; on a
+  // measurement bench the sample under the light has to be the sample.
   useEffect(() => {
-    if (analysisHistory.length >= 2) {
-      const s = analysisHistory[1]
-      material.uniforms.uRigidity2.value = s.rigidity
-      material.uniforms.uFlow2.value     = s.flow
-      material.uniforms.uSpecular2.value = s.specular
-      material.uniforms.uColor2.value.set(s.color[0], s.color[1], s.color[2])
-    }
-    if (analysisHistory.length >= 3) {
-      const s = analysisHistory[2]
-      material.uniforms.uRigidity3.value = s.rigidity
-      material.uniforms.uFlow3.value     = s.flow
-      material.uniforms.uColor3.value.set(s.color[0], s.color[1], s.color[2])
-    }
-  }, [analysisHistory, material])
-
-  useEffect(() => { material.uniforms.uRigidity.value = rigidity }, [rigidity, material])
-  useEffect(() => { material.uniforms.uFlow.value = flow }, [flow, material])
-  useEffect(() => { material.uniforms.uSpecular.value = specular }, [specular, material])
-  useEffect(() => { material.uniforms.uColor.value.set(color[0], color[1], color[2]) }, [color, material])
+    const u = material.uniforms
+    u.uRigidity.value = u.uRigidity2.value = u.uRigidity3.value = rigidity
+  }, [rigidity, material])
+  useEffect(() => {
+    const u = material.uniforms
+    u.uFlow.value = u.uFlow2.value = u.uFlow3.value = flow
+  }, [flow, material])
+  useEffect(() => {
+    const u = material.uniforms
+    u.uSpecular.value = u.uSpecular2.value = specular
+  }, [specular, material])
+  useEffect(() => {
+    const u = material.uniforms
+    u.uColor.value.set(color[0], color[1], color[2])
+    u.uColor2.value.set(color[0], color[1], color[2])
+    u.uColor3.value.set(color[0], color[1], color[2])
+  }, [color, material])
   useEffect(() => { material.uniforms.uMouse.value.set(mouse[0], mouse[1]) }, [mouse, material])
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime()
     material.uniforms.uTime.value = t
-    material.uniforms.uMorphCycle.value = (Math.sin(t * 0.15) + 1.0) / 2.0
+    // uMorphCycle stays at 0: with all three slots holding the same material
+    // the shader's cross-fade is a no-op, and the sample stays what you picked.
   })
 
   const geometry = useMemo(() => new THREE.IcosahedronGeometry(1.6, 64), [])
