@@ -24,15 +24,24 @@ function clampField(value, fallback) {
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : fallback
 }
 
+// The prompt gives explicit 0.0-1.0 ranges for the three scalars but not for
+// colour, so the model answers in conventional 0-255 RGB. Clamping that to
+// [0,1] flattened every saturated colour to 1 and rendered pure white — the
+// model was reading colour correctly all along. Normalise before clamping.
+function normaliseColor(raw, fallback) {
+  if (!Array.isArray(raw) || raw.length !== 3) return fallback
+  const nums = raw.map(Number)
+  if (nums.some((n) => !Number.isFinite(n))) return fallback
+  const scale = nums.some((n) => n > 1) ? 255 : 1
+  return nums.map((n) => Math.max(0, Math.min(1, n / scale)))
+}
+
 function sanitise(parsed) {
   return {
     rigidity: clampField(parsed.rigidity, DEFAULTS.rigidity),
     flow: clampField(parsed.flow, DEFAULTS.flow),
     specular: clampField(parsed.specular, DEFAULTS.specular),
-    color:
-      Array.isArray(parsed.color) && parsed.color.length === 3
-        ? parsed.color.map((c, i) => clampField(c, DEFAULTS.color[i]))
-        : DEFAULTS.color,
+    color: normaliseColor(parsed.color, DEFAULTS.color),
   }
 }
 
