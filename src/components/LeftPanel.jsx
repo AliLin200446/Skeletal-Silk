@@ -23,8 +23,8 @@ export default function LeftPanel() {
         <div style={{fontSize:11,fontWeight:500,letterSpacing:'0.24em',color:'#fff',lineHeight:1}}>
           SKELETAL SILK
         </div>
-        <div style={{marginTop:6,fontSize:7.5,letterSpacing:'0.16em',color:'rgba(255,255,255,0.35)'}}>
-          BIOMATERIAL ENGINE · V1
+        <div style={{marginTop:9,fontSize:11,letterSpacing:'0.02em',color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>
+          reads a material photo into shader parameters you can use
         </div>
       </div>
 
@@ -40,10 +40,10 @@ export default function LeftPanel() {
         {/* Concept */}
         <div style={{paddingTop:32}}>
           <div style={{fontSize:7.5,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',marginBottom:14}}>
-            CONCEPT
+            WHAT IT DOES
           </div>
           <div style={{fontSize:13,letterSpacing:'0.04em',color:'rgba(255,255,255,0.6)',lineHeight:1.8}}>
-            An AI-driven biomorphic textile engine. Upload a fabric — Claude Vision analyses material properties and maps them to GLSL shader uniforms, generating a living 3D form where silk grows bone structure in real time.
+            Point it at a photo of a material. Claude Vision reads four physical properties — rigidity, flow, specularity, colour — measured from your image rather than picked from a preset list. Those four numbers drive a GLSL shader live. Adjust, preview, export the shader with its parameters.
           </div>
         </div>
 
@@ -54,10 +54,10 @@ export default function LeftPanel() {
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
             {[
-              ['01', 'INPUT',    'Pick a preset, upload fabric, or describe material'],
-              ['02', 'ANALYSE',  'Claude Vision → 4 material parameters'],
-              ['03', 'RENDER',   'GLSL maps parameters to biomorphic form'],
-              ['04', 'MORPH',    'Mesh interpolates last 3 material states'],
+              ['01', 'INPUT',    'Upload a photo, pick a swatch, or describe a material'],
+              ['02', 'READ',     'Claude Vision returns 4 constrained numbers, not prose'],
+              ['03', 'DRIVE',    'Each number is wired to a named GLSL uniform'],
+              ['04', 'EXPORT',   'Take the shader and its parameters into your own project'],
             ].map(([n, label, desc]) => (
               <div key={n} style={{display:'flex',gap:10,alignItems:'flex-start'}}>
                 <div style={{fontSize:7.5,color:'rgba(255,255,255,0.18)',flexShrink:0,marginTop:1,width:14}}>{n}</div>
