@@ -153,6 +153,46 @@ export default function Panel() {
           minWidth: 220,
         }}
       >
+      {/* The vision→parameters→shader step is the whole mechanism, so it
+          leads the panel rather than sitting in a corner readout. Stacked
+          vertically because the panel is 220px wide. */}
+      <section className="panel-section">
+        <div className="section-label">PIPELINE</div>
+        <div className="flow">
+          <div className="flow-step">
+            {uploadedImage
+              ? <img src={uploadedImage} alt="current input" className="flow-thumb" />
+              : <div className="flow-thumb flow-thumb-empty">—</div>}
+            <div className="flow-body">
+              <div className="flow-title">YOUR PHOTO</div>
+              <div className="flow-sub">{uploadedImage ? 'sent to Claude Vision' : 'upload or pick a swatch'}</div>
+            </div>
+          </div>
+          <div className="flow-arrow">↓</div>
+          <div className="flow-step">
+            <div className="flow-nums">
+              {analysisResult
+                ? [analysisResult.rigidity, analysisResult.flow, analysisResult.specular]
+                    .map((v, i) => <span key={i}>{v.toFixed(2)}</span>)
+                : <span>—</span>}
+              <span className="flow-chip" style={{ background: colorHex }} />
+            </div>
+            <div className="flow-body">
+              <div className="flow-title">CLAUDE READS</div>
+              <div className="flow-sub">4 constrained numbers</div>
+            </div>
+          </div>
+          <div className="flow-arrow">↓</div>
+          <div className="flow-step">
+            <div className="flow-uniforms">uRigidity<br />uFlow<br />uSpecular<br />uColor</div>
+            <div className="flow-body">
+              <div className="flow-title">SHADER</div>
+              <div className="flow-sub">rendering live, left</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="panel-section">
         <div className="section-label">SWATCHES</div>
         <div className="preset-row">
@@ -232,6 +272,12 @@ export default function Panel() {
             </span>
           )}
         </div>
+        {source === 'CACHED' && (
+          <div className="source-note">stored values — upload a photo to run Claude on it</div>
+        )}
+        {source === 'LIVE' && (
+          <div className="source-note">read from your image just now</div>
+        )}
         {analysisResult ? (
           <>
             <ParamBar label="RIGIDITY" value={analysisResult.rigidity} />
@@ -245,6 +291,7 @@ export default function Panel() {
             {rawJson && (
               <>
                 <pre className="raw-json">{rawJson}</pre>
+                <div className="uniform-map-label">the model&rsquo;s reading, wired straight to shader uniforms</div>
                 <div className="uniform-map">
                   rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
                 </div>
