@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# exported material files (from the in-app export button)
+skeletal-silk-material.glsl.js

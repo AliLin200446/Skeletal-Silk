@@ -298,7 +298,7 @@ export default function Panel() {
             {rawJson && (
               <>
                 <pre className="raw-json">{rawJson}</pre>
-                <div className="uniform-map-label">the model&rsquo;s reading, wired straight to shader uniforms</div>
+                <div className="uniform-map-label">the model&rsquo;s reading, wired straight to the shader&rsquo;s uniforms</div>
                 <div className="uniform-map">
                   rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
                 </div>

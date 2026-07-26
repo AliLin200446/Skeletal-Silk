@@ -24,7 +24,7 @@ export default function LeftPanel() {
           SKELETAL SILK
         </div>
         <div style={{marginTop:9,fontSize:11,letterSpacing:'0.02em',color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>
-          reads a material photo into shader parameters you can use
+          reads a fabric photo into four numbers that drive a material shader
         </div>
       </div>
 
@@ -43,7 +43,7 @@ export default function LeftPanel() {
             WHAT IT DOES
           </div>
           <div style={{fontSize:13,letterSpacing:'0.04em',color:'rgba(255,255,255,0.6)',lineHeight:1.8}}>
-            Point it at a photo of a material. Claude Vision reads four physical properties — rigidity, flow, specularity, colour — measured from your image rather than picked from a preset list. Those four numbers drive a GLSL shader live. Adjust, preview, export the shader with its parameters.
+            Point it at a photo of a material. Claude Vision reads four physical properties — rigidity, flow, specularity, colour — and those four numbers drive a GLSL material shader in real time. Adjust, preview, export the shader and its parameters.
           </div>
         </div>
 
