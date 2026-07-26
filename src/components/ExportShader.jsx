@@ -73,6 +73,10 @@ export default function ExportShader() {
           : 'EXPORT SHADER + PARAMETERS'}
       </button>
       <div className="export-hint">GLSL plus the four values read from your image</div>
+      <div className="sample-caption">
+        preview sample — a neutral surface driven by the four uniforms; the
+        reading and the export are the point, not photoreal cloth
+      </div>
     </div>
   )
 }

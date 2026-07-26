@@ -130,15 +130,15 @@ export default function Panel() {
       <div
         onClick={() => setCollapsed(c => !c)}
         style={{
-          position: 'fixed', right: collapsed ? 0 : 220, top: '50%',
+          position: 'fixed', right: collapsed ? 0 : 236, top: '50%',
           transform: 'translateY(-50%)',
           width: 16, height: 48,
-          background: 'rgba(0,0,0,0.6)',
-          border: '0.5px solid rgba(255,255,255,0.1)',
-          borderRight: collapsed ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
+          background: 'var(--paper)',
+          border: '1px solid var(--rule)',
+          borderRight: collapsed ? '1px solid var(--rule)' : 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', zIndex: 20,
-          fontSize: '8px', color: 'rgba(255,255,255,0.4)',
+          fontSize: '9px', color: 'var(--ink-mid)',
           transition: 'right 0.3s',
           letterSpacing: 0,
         }}
@@ -223,16 +223,16 @@ export default function Panel() {
         {isAnalysing && (
           <div style={{marginTop:8}}>
             <div style={{
-              fontSize:'8px', letterSpacing:'0.16em',
-              color:'rgba(255,255,255,0.35)', marginBottom:5
+              fontSize:'9px', letterSpacing:'0.16em',
+              color:'var(--ink-mid)', marginBottom:5
             }}>CLAUDE ANALYSING...</div>
             <div style={{
-              width:'100%', height:'1px', background:'#111',
+              width:'100%', height:'1px', background:'var(--rule)',
               position:'relative', overflow:'hidden'
             }}>
               <div style={{
                 position:'absolute', top:0, height:'1px',
-                background:'rgba(255,255,255,0.6)',
+                background:'var(--ink)',
                 animation:'shimmer 1.4s ease-in-out infinite',
                 width:'45%',
               }}/>
@@ -275,7 +275,7 @@ export default function Panel() {
           CLAUDE ANALYSIS
           {source && (
             <span title={SOURCE_TITLE[source]}
-              style={{ float:'right', color:'rgba(255,255,255,0.45)', letterSpacing:'0.2em' }}>
+              style={{ float:'right', color:'var(--ink-mid)', letterSpacing:'0.2em' }}>
               {SOURCE_TAG[source]}
             </span>
           )}
@@ -307,7 +307,7 @@ export default function Panel() {
             )}
           </>
         ) : (
-          <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.28)', lineHeight: 1.7 }}>
+          <div style={{ fontSize: '9px', letterSpacing: '0.12em', color: 'var(--ink-dim)', lineHeight: 1.7 }}>
             NO ANALYSIS YET — PICK A SWATCH OR USE INPUT ABOVE
           </div>
         )}
@@ -342,18 +342,18 @@ export default function Panel() {
           {analysisHistory.map((s, i) => (
             <div key={s.timestamp} style={{
               marginBottom: 8, opacity: 1 - i * 0.25,
-              borderLeft: `0.5px solid rgba(255,255,255,${0.3 - i * 0.1})`,
+              borderLeft: `1px solid var(--rule-strong)`,
               paddingLeft: 8,
             }}>
-              <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)', marginBottom: 3 }}>
+              <div style={{ fontSize: '9px', letterSpacing: '0.12em', color: 'var(--ink-dim)', marginBottom: 3 }}>
                 STATE {i + 1} {i === 0 ? '· CURRENT' : ''}
               </div>
-              <div style={{ fontSize: '8px', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)' }}>
+              <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'var(--ink-mid)' }}>
                 R:{s.rigidity.toFixed(2)} F:{s.flow.toFixed(2)} S:{s.specular.toFixed(2)}
               </div>
             </div>
           ))}
-          <div style={{ fontSize: '8px', letterSpacing: '0.14em', color: 'rgba(255,255,255,0.2)', marginTop: 4 }}>
+          <div style={{ fontSize: '9px', letterSpacing: '0.14em', color: 'var(--ink-dim)', marginTop: 4 }}>
             MORPHING BETWEEN STATES →
           </div>
         </section>
