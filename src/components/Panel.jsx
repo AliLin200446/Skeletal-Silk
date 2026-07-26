@@ -247,6 +247,13 @@ export default function Panel() {
           <button className="btn" onClick={()=>runAnalysis({description:text})}
             disabled={isAnalysing||!text.trim()}>→</button>
         </div>
+        {/* Honest boundary: the model classifies whatever it is given. An ink
+            line drawing returns rigidity 0.92 as confidently as real leather. */}
+        <div className="boundary-note">
+          Assumes the input is a material. It reads properties — it does not
+          verify the photo is fabric, and will answer confidently for a
+          drawing or a landscape.
+        </div>
         {analysisError && <div className="status error" style={{marginTop:8}}>✕ {analysisError}</div>}
       </section>
 
