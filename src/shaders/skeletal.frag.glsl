@@ -19,7 +19,9 @@ void main() {
   vec3 L1 = normalize(vec3(-1.0, 1.0, 0.5));
   vec3 H1 = normalize(L1 + V);
   float d1 = max(dot(N, L1), 0.0);
-  float s1 = pow(max(dot(N, H1), 0.0), 16.0 + uSpecular * 120.0);
+  // Satin reads as a broad sheen band, not a pinpoint. Lower exponent range
+  // keeps the highlight wide enough to follow the folds.
+  float s1 = pow(max(dot(N, H1), 0.0), 8.0 + uSpecular * 46.0);
 
   // Soft back fill — very dim
   vec3 L2 = normalize(vec3(1.0, -0.5, -1.0));
@@ -28,8 +30,9 @@ void main() {
   // Rim light — edge glow
   float rim = pow(1.0 - max(dot(N, V), 0.0), 5.0) * 0.3 * uSpecular;
 
-  // Bone vs silk zones
-  float bone = vBone * uRigidity;
+  // Bone vs silk zones. Gated on rigidity to match the vertex displacement,
+  // so a soft material keeps its own colour instead of going chalky ivory.
+  float bone = vBone * uRigidity * smoothstep(0.35, 0.90, uRigidity);
   float silk = 1.0 - bone;
 
   // Silk iridescence — thin film on non-bone areas
@@ -52,8 +55,8 @@ void main() {
   vec3 baseColor = mix(silkColor, boneColor, bone * 0.8);
 
   // Lighting assembly — keep shadows dark
-  vec3 ambient = baseColor * 0.01;
-  vec3 diffuse = baseColor * pow(d1, 1.8) * 0.5;
+  vec3 ambient = baseColor * 0.035;
+  vec3 diffuse = baseColor * pow(d1, 1.8) * 0.72;
   vec3 fill    = baseColor * d2;
   vec3 spec    = mix(colorMix * 0.3 + 0.7, vec3(1.0), bone) * s1 * uSpecular * 0.8;
   vec3 rimCol  = mix(colorMix, vec3(0.9, 0.9, 1.0), 0.5) * rim;
