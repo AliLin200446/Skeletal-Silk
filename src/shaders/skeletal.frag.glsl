@@ -15,20 +15,22 @@ void main() {
   vec3 N = normalize(vNormal);
   vec3 V = normalize(-vPosition);
 
-  // Key light
-  vec3 L1 = normalize(vec3(-1.0, 1.0, 0.5));
+  // Key light. Wrapped diffuse rather than plain Lambert: a hard terminator
+  // is how a planet lit by a sun reads. Cloth in a studio falls off softly.
+  vec3 L1 = normalize(vec3(-0.95, 0.55, 0.30));
   vec3 H1 = normalize(L1 + V);
-  float d1 = max(dot(N, L1), 0.0);
-  // Satin reads as a broad sheen band, not a pinpoint. Lower exponent range
-  // keeps the highlight wide enough to follow the folds.
+  float wrap = 0.18;
+  float d1 = max((dot(N, L1) + wrap) / (1.0 + wrap), 0.0);
+  // Satin reads as a broad sheen band, not a pinpoint.
   float s1 = pow(max(dot(N, H1), 0.0), 8.0 + uSpecular * 46.0);
 
-  // Soft back fill — very dim
-  vec3 L2 = normalize(vec3(1.0, -0.5, -1.0));
-  float d2 = max(dot(N, L2), 0.0) * 0.06;
+  // Opposing fill, strong enough that the far side stays a material rather
+  // than falling to black like a crescent moon.
+  vec3 L2 = normalize(vec3(0.9, -0.35, -0.4));
+  float d2 = max((dot(N, L2) + wrap) / (1.0 + wrap), 0.0) * 0.20;
 
-  // Rim light — edge glow
-  float rim = pow(1.0 - max(dot(N, V), 0.0), 5.0) * 0.3 * uSpecular;
+  // Sheen at grazing angles — the second half of how silk announces itself.
+  float rim = pow(1.0 - max(dot(N, V), 0.0), 3.2) * (0.14 + 0.30 * uSpecular);
 
   // Bone vs silk zones. Gated on rigidity to match the vertex displacement,
   // so a soft material keeps its own colour instead of going chalky ivory.
@@ -43,23 +45,36 @@ void main() {
     0.5 + 0.5 * cos(t + 2.094),
     0.5 + 0.5 * cos(t + 4.189)
   );
-  vec3 silkSheen = mix(vec3(1.0), ird, silk * uSpecular * 0.5);
+  // Kept to a whisper. At half strength this dominated the surface and
+  // turned every material grey-purple regardless of its detected colour.
+  vec3 silkSheen = mix(vec3(1.0), ird, silk * uSpecular * 0.10);
 
   float morphA = smoothstep(0.0, 0.5, uMorphCycle);
   float morphB = smoothstep(0.5, 1.0, uMorphCycle);
   vec3 colorMix = mix(uColor, mix(uColor2, uColor3, morphB), morphA);
+  // The detected colour arrives in sRGB. Lighting happens in linear space and
+  // the result is gamma-encoded on the way out, so using it raw brightened
+  // every material twice — oxblood leather rendered as pale grey-pink.
+  colorMix = pow(colorMix, vec3(2.2));
 
-  // Color zones: bone → ivory, silk → colorMix with sheen
-  vec3 boneColor = vec3(0.82, 0.79, 0.74);
+  // Rigidity changes the surface relief, not the material's colour. This
+  // previously blended toward a hardcoded ivory "bone" tone, which washed
+  // oxblood leather out to near-white as rigidity rose — a leftover from the
+  // bone-through-silk concept, and wrong for a tool that reports a colour.
+  // Ridge crests just catch slightly more light, in the detected hue.
   vec3 silkColor = colorMix * silkSheen;
-  vec3 baseColor = mix(silkColor, boneColor, bone * 0.8);
+  vec3 baseColor = silkColor * (1.0 + bone * 0.30);
 
   // Lighting assembly — keep shadows dark
-  vec3 ambient = baseColor * 0.035;
-  vec3 diffuse = baseColor * pow(d1, 1.8) * 0.72;
+  vec3 ambient = baseColor * 0.05;
+  vec3 diffuse = baseColor * pow(d1, 1.25) * 1.00;
   vec3 fill    = baseColor * d2;
-  vec3 spec    = mix(colorMix * 0.3 + 0.7, vec3(1.0), bone) * s1 * uSpecular * 0.8;
-  vec3 rimCol  = mix(colorMix, vec3(0.9, 0.9, 1.0), 0.5) * rim;
+  // Highlight no longer whitens with rigidity (another bone-era leftover): a
+  // crusty surface catches the key on every ridge, so that turned dark
+  // materials into white rock. Damped on rough surfaces for the same reason.
+  vec3 spec    = mix(colorMix * 0.3 + 0.7, vec3(1.0), 0.35)
+                 * s1 * uSpecular * 0.60 * (1.0 - bone * 0.55);
+  vec3 rimCol  = mix(colorMix, vec3(0.9, 0.9, 1.0), 0.35) * rim;
 
   vec3 col = ambient + diffuse + fill + spec + rimCol;
 
