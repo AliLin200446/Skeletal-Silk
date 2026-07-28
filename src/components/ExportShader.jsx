@@ -8,11 +8,46 @@ import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
 // shader alone is identical for every material, the numbers alone are inert.
 function buildExport({ rigidity, flow, specular, color }) {
   const v3 = color.map((c) => c.toFixed(4)).join(', ')
-  return `// Skeletal Silk — material export
-// Parameters read by Claude Vision from the source image.
-// Drop into a THREE.ShaderMaterial; morph states are pinned to the current
-// material so the surface renders static.
+  const params = JSON.stringify({ rigidity, flow, specular, color }, null, 2)
+  return `/* ────────────────────────────────────────────────────────────────────
+   Skeletal Silk — material export
+   skeletal-silk.alilinlab.com
 
+   The four values below were read from your source image by Claude Vision.
+   They are the whole payload: the GLSL underneath is fixed, and these
+   numbers are what make it this material rather than another one.
+   ──────────────────────────────────────────────────────────────────── */
+
+/* 1. THE READING — the model's output, verbatim.
+      rigidity, flow and specular are 0..1; color is linear-ish sRGB 0..1. */
+const materialParams = ${params}
+
+/* 2. USAGE — three.js. Paste the two shader sources below as strings
+      (or keep them in .glsl files and import them raw).
+
+   import * as THREE from 'three'
+
+   const material = new THREE.ShaderMaterial({
+     vertexShader:   SKELETAL_SILK_VERT,
+     fragmentShader: SKELETAL_SILK_FRAG,
+     uniforms,
+     side: THREE.DoubleSide,
+   })
+   const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6, 64), material)
+   scene.add(mesh)
+
+   // per frame — uTime drives the surface motion:
+   material.uniforms.uTime.value = clock.getElapsedTime()
+
+   Geometry note: the shader displaces along the vertex normal, so it needs a
+   reasonably dense mesh. The icosahedron above (64 subdivisions) is what the
+   live tool uses; a low-poly mesh will look faceted.
+
+   uMouse is optional — feed it normalised cursor coords (-1..1) to dent the
+   surface, or leave it at 0 for a static sample. */
+
+/* 3. UNIFORMS — ready to drop in. The three morph slots are pinned to this
+      one material so the surface renders static rather than cross-fading. */
 const uniforms = {
   uTime:        { value: 0 },
   uRigidity:    { value: ${rigidity} },
@@ -29,13 +64,18 @@ const uniforms = {
   uFlow3:       { value: ${flow} },
   uColor3:      { value: new THREE.Vector3(${v3}) },
 }
-// Advance uniforms.uTime.value each frame for the surface animation.
 
-/* ============================ vertex shader ============================ */
+/* ═══════════════════════ 4. VERTEX SHADER ═══════════════════════ */
+const SKELETAL_SILK_VERT = \`
 ${vertGLSL.trim()}
+\`
 
-/* =========================== fragment shader =========================== */
+/* ══════════════════════ 5. FRAGMENT SHADER ══════════════════════ */
+const SKELETAL_SILK_FRAG = \`
 ${fragGLSL.trim()}
+\`
+
+export { materialParams, uniforms, SKELETAL_SILK_VERT, SKELETAL_SILK_FRAG }
 `
 }
 
