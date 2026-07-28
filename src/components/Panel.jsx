@@ -1,6 +1,9 @@
 import { useRef, useState, useCallback } from 'react'
 import { useStore } from '../store'
-import { analyseFabric, fileToBase64, imageUrlToBase64, InvalidAnalysisError } from '../utils/analyseFabric'
+import {
+  analyseFabric, fileToBase64, imageUrlToBase64,
+  InvalidAnalysisError, RateLimitedError,
+} from '../utils/analyseFabric'
 import { PRESETS } from '../data/presets'
 import TESTED_ON from '../data/tested-on.json'
 
@@ -90,8 +93,10 @@ export default function Panel() {
     }
   }, [setAnalysing, applyWithJson, setAnalysisError])
 
+  // No silent rejections: a wrong file type or an oversized image used to
+  // return quietly here, so a user who dropped a PDF saw nothing happen at
+  // all. fileToBase64 validates and throws a readable message instead.
   const handleFile = useCallback(async (file) => {
-    if (!file || !file.type.startsWith('image/')) return
     try {
       const { base64, mediaType } = await fileToBase64(file)
       setUploadedImage(`data:${mediaType};base64,${base64}`)
@@ -121,9 +126,14 @@ export default function Panel() {
       applyWithJson(await analyseFabric({ imageBase64: base64, mediaType }), 'LIVE')
     } catch (err) {
       setAnalysing(false)
-      setSource(err instanceof InvalidAnalysisError ? 'FALLBACK' : 'CACHED')
+      if (err instanceof RateLimitedError) {
+        // Cached values are already showing, so this is a note, not a failure.
+        setAnalysisError(err.message)
+      } else {
+        setSource(err instanceof InvalidAnalysisError ? 'FALLBACK' : 'CACHED')
+      }
     }
-  }, [setDescription, setUploadedImage, applyWithJson, setAnalysing])
+  }, [setDescription, setUploadedImage, applyWithJson, setAnalysing, setAnalysisError])
 
   return (
     <>

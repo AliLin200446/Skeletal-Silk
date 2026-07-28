@@ -58,6 +58,17 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Provide an image or a description' })
   }
 
+  // Server-side ceiling. The client already downscales to 1024px, but the
+  // client is not the security boundary — anything can POST here, and image
+  // tokens are what this endpoint actually spends money on. ~4MB of base64
+  // is far above a legitimate downscaled JPEG.
+  if (typeof imageBase64 === 'string' && imageBase64.length > 4_000_000) {
+    return res.status(413).json({ error: 'Image is too large' })
+  }
+  if (typeof description === 'string' && description.length > 500) {
+    return res.status(413).json({ error: 'Description is too long' })
+  }
+
   const userContent = []
   if (imageBase64) {
     userContent.push({
