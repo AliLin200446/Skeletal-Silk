@@ -1,8 +1,15 @@
 {
-  "_provenance": "Unedited readings from the deployed /api/analyse endpoint, 2026-07-26. Each row is one photograph the tool had never seen. Both subjects are in the same red hue family and differ mainly in physical structure, so divergent numbers indicate the model is reading properties rather than averaging colour.",
-  "readings": [
+  "_provenance": "Unedited output from the deployed /api/analyse endpoint (claude-sonnet-4-5), captured 2026-07-26. Nothing here is estimated or hand-authored. Swatch rows were sampled twice each and returned byte-identical values both times.",
+  "_readMe": "Two groups, deliberately. The photographs carry weave and relief, so the model separates them sharply. The swatches are solid-colour placeholder PNGs with no texture to read, and three of the four collapse onto the same answer. Publishing both is the honest version: it shows what the tool discriminates on, and what it cannot.",
+  "photographs": [
     { "label": "RED KNIT", "note": "soft textile", "rigidity": 0.08, "flow": 0.92, "specular": 0.65 },
     { "label": "PIGMENTED WOOD", "note": "hard, matte", "rigidity": 0.92, "flow": 0.08, "specular": 0.45 }
   ],
-  "_pendingReason": "The four swatch images are solid-colour placeholders, not fabric photographs. Measured twice, silk and linen return byte-identical values (0.48/0.42/0.12) because there is no weave to read. Their rows are withheld until real photographs replace the placeholders."
+  "swatches": [
+    { "label": "SILK", "note": "flat colour", "rigidity": 0.48, "flow": 0.42, "specular": 0.12 },
+    { "label": "LINEN", "note": "flat colour", "rigidity": 0.48, "flow": 0.42, "specular": 0.12 },
+    { "label": "DENIM", "note": "flat colour", "rigidity": 0.52, "flow": 0.38, "specular": 0.12 },
+    { "label": "LEATHER", "note": "flat colour", "rigidity": 0.72, "flow": 0.12, "specular": 0.58 }
+  ],
+  "_swatchFinding": "Silk and linen are byte-identical and denim is within 0.04 of both. With no weave in the image the model has only hue to go on, and two pale neutrals read as the same material. Leather separates because its hue is far enough away. Replacing these placeholders with real fabric photographs is the fix."
 }

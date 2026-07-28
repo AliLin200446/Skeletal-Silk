@@ -322,7 +322,7 @@ export default function Panel() {
           <span />
           <span>RIG</span><span>FLW</span><span>SPC</span>
         </div>
-        {TESTED_ON.readings.map((r) => (
+        {TESTED_ON.photographs.map((r) => (
           <div className="tested-row" key={r.label}>
             <span className="tested-label">{r.label}<em>{r.note}</em></span>
             <span>{r.rigidity.toFixed(2)}</span>
@@ -330,9 +330,26 @@ export default function Panel() {
             <span>{r.specular.toFixed(2)}</span>
           </div>
         ))}
-        <div className="tested-pending">
-          Swatch rows pending real fabric photographs — the placeholders are
-          flat colour and read alike.
+        <div className="tested-note">
+          Photographs separate sharply — same red hue family, inverted
+          rigidity and flow.
+        </div>
+
+        {/* The control group. These converge, and saying so is the point:
+            it shows what the tool discriminates on and what it cannot. */}
+        <div className="tested-subhead">SOLID-COLOUR SWATCHES · CONTROL</div>
+        {TESTED_ON.swatches.map((r) => (
+          <div className="tested-row tested-row-muted" key={r.label}>
+            <span className="tested-label">{r.label}<em>{r.note}</em></span>
+            <span>{r.rigidity.toFixed(2)}</span>
+            <span>{r.flow.toFixed(2)}</span>
+            <span>{r.specular.toFixed(2)}</span>
+          </div>
+        ))}
+        <div className="tested-note">
+          Silk and linen return identical values and denim is within 0.04.
+          With no weave in the image there is only hue to read. Real fabric
+          photographs are the fix.
         </div>
       </section>
 
