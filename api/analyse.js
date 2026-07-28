@@ -24,15 +24,24 @@ function clampField(value, fallback) {
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : fallback
 }
 
+// The prompt gives explicit 0.0-1.0 ranges for the three scalars but not for
+// colour, so the model answers in conventional 0-255 RGB. Clamping that to
+// [0,1] flattened every saturated colour to 1 and rendered pure white — the
+// model was reading colour correctly all along. Normalise before clamping.
+function normaliseColor(raw, fallback) {
+  if (!Array.isArray(raw) || raw.length !== 3) return fallback
+  const nums = raw.map(Number)
+  if (nums.some((n) => !Number.isFinite(n))) return fallback
+  const scale = nums.some((n) => n > 1) ? 255 : 1
+  return nums.map((n) => Math.max(0, Math.min(1, n / scale)))
+}
+
 function sanitise(parsed) {
   return {
     rigidity: clampField(parsed.rigidity, DEFAULTS.rigidity),
     flow: clampField(parsed.flow, DEFAULTS.flow),
     specular: clampField(parsed.specular, DEFAULTS.specular),
-    color:
-      Array.isArray(parsed.color) && parsed.color.length === 3
-        ? parsed.color.map((c, i) => clampField(c, DEFAULTS.color[i]))
-        : DEFAULTS.color,
+    color: normaliseColor(parsed.color, DEFAULTS.color),
   }
 }
 
@@ -47,6 +56,17 @@ export default async function handler(req, res) {
   const { imageBase64, mediaType, description } = req.body ?? {}
   if (!imageBase64 && !description?.trim()) {
     return res.status(400).json({ error: 'Provide an image or a description' })
+  }
+
+  // Server-side ceiling. The client already downscales to 1024px, but the
+  // client is not the security boundary — anything can POST here, and image
+  // tokens are what this endpoint actually spends money on. ~4MB of base64
+  // is far above a legitimate downscaled JPEG.
+  if (typeof imageBase64 === 'string' && imageBase64.length > 4_000_000) {
+    return res.status(413).json({ error: 'Image is too large' })
+  }
+  if (typeof description === 'string' && description.length > 500) {
+    return res.status(413).json({ error: 'Description is too long' })
   }
 
   const userContent = []

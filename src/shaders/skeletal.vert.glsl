@@ -67,6 +67,33 @@ float mouseBend(vec3 pos) {
   return (1.0 - smoothstep(0.0, uMouseRadius, dist)) * 0.12;
 }
 
+// Cloth reads as two scales at once: broad soft folds that catch the light,
+// and a fine weave over the top. One low-frequency fbm plus one high.
+float silkHeight(vec3 p, float t, float flowMix) {
+  vec3 pFold  = p*1.3 + vec3(t*0.40, t*0.25, t*0.15);
+  vec3 pWeave = p*7.5 + vec3(t*0.50, t*0.30, t*0.20);
+  float fold  = (fbm(pFold, 4) - 0.5) * 0.055;
+  float weave = (fbm(pWeave, 3) - 0.5) * 0.012;
+  return (fold + weave) * flowMix;
+}
+
+// The ridged term is the rigid structure. Gated on rigidity so soft
+// materials stay smooth and only stiff ones crust up — the parameter
+// response stays visible without rendering silk as cratered rock.
+float boneSharpness(vec3 p, float t, float rigidMix) {
+  vec3 pBone = p*5.0 + vec3(t*0.1, -t*0.08, t*0.2);
+  return pow(ridgedMF(pBone, 5), 1.5 + rigidMix*2.0);
+}
+
+// Displacement and its finite-difference normals must use identical maths,
+// so both go through this one function.
+float surfaceHeight(vec3 p, float t, float flowMix, float rigidMix) {
+  float gate = smoothstep(0.35, 0.90, rigidMix);
+  return silkHeight(p, t, flowMix)
+       + boneSharpness(p, t, rigidMix) * gate * 0.16
+       + mouseBend(p);
+}
+
 void main() {
   vUv = uv;
   vec3 pos = position;
@@ -76,35 +103,27 @@ void main() {
   float flowMix    = mix(uFlow,    mix(uFlow2,    uFlow3,    morphB), morphA);
   float rigidMix   = mix(uRigidity,mix(uRigidity2,uRigidity3,morphB), morphA);
   float t = uTime*(0.3+flowMix*0.7);
-  vec3 pFlow = pos*2.2 + vec3(t*0.4, t*0.25, t*0.15);
-  vec3 pBone = pos*5.0 + vec3(t*0.1, -t*0.08, t*0.2);
 
-  float silk = fbm(pFlow, 5);
-  float silkDisplace = (silk-0.5)*flowMix*0.10;
-  float boneRaw = ridgedMF(pBone, 5);
-  float boneSharp = pow(boneRaw, 1.5+rigidMix*2.0);
-  float boneDisplace = boneSharp*rigidMix*0.14;
-  float bend = mouseBend(pos);
-  float totalD = silkDisplace + boneDisplace + bend;
-  pos += normal*totalD;
+  pos += normal * surfaceHeight(position, t, flowMix, rigidMix);
 
-  vBone = boneSharp;
-  vPosition = pos;
+  vBone = boneSharpness(position, t, rigidMix);
 
   float eps = 0.008;
   vec3 px = position+vec3(eps,0,0);
   vec3 py = position+vec3(0,eps,0);
-  vec3 pxFlow=px*2.2+vec3(t*0.4,t*0.25,t*0.15);
-  vec3 pyFlow=py*2.2+vec3(t*0.4,t*0.25,t*0.15);
-  vec3 pxBone=px*5.0+vec3(t*0.1,-t*0.08,t*0.2);
-  vec3 pyBone=py*5.0+vec3(t*0.1,-t*0.08,t*0.2);
-  float silkX=(fbm(pxFlow,5)-0.5)*flowMix*0.10;
-  float silkY=(fbm(pyFlow,5)-0.5)*flowMix*0.10;
-  float boneX=pow(ridgedMF(pxBone,5),1.5+rigidMix*2.0)*rigidMix*0.14;
-  float boneY=pow(ridgedMF(pyBone,5),1.5+rigidMix*2.0)*rigidMix*0.14;
-  vec3 dispX=px+normal*(silkX+boneX+mouseBend(px));
-  vec3 dispY=py+normal*(silkY+boneY+mouseBend(py));
-  vNormal = normalize(cross(dispX-pos, dispY-pos));
+  vec3 dispX = px + normal*surfaceHeight(px, t, flowMix, rigidMix);
+  vec3 dispY = py + normal*surfaceHeight(py, t, flowMix, rigidMix);
+  vec3 objectNormal = normalize(cross(dispX-pos, dispY-pos));
 
-  gl_Position = projectionMatrix*modelViewMatrix*vec4(pos,1.0);
+  // Lighting has to happen in view space. vPosition previously carried the
+  // OBJECT-space position, so the fragment shader's view vector -vPosition
+  // pointed at the sphere's own centre — almost exactly -N. That made
+  // dot(N,V) constant: the rim term evaluated to 1.0 across the whole
+  // surface (a flat wash that greyed out every colour) and the specular
+  // half-vector went negative, so the highlight was zero everywhere.
+  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+  vPosition = mvPosition.xyz;
+  vNormal   = normalize(normalMatrix * objectNormal);
+
+  gl_Position = projectionMatrix * mvPosition;
 }

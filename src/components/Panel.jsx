@@ -1,7 +1,11 @@
 import { useRef, useState, useCallback } from 'react'
 import { useStore } from '../store'
-import { analyseFabric, fileToBase64, imageUrlToBase64, InvalidAnalysisError } from '../utils/analyseFabric'
+import {
+  analyseFabric, fileToBase64, imageUrlToBase64,
+  InvalidAnalysisError, RateLimitedError,
+} from '../utils/analyseFabric'
 import { PRESETS } from '../data/presets'
+import TESTED_ON from '../data/tested-on.json'
 
 function Slider({ label, storeKey }) {
   const val = useStore(s => s[storeKey])
@@ -89,8 +93,10 @@ export default function Panel() {
     }
   }, [setAnalysing, applyWithJson, setAnalysisError])
 
+  // No silent rejections: a wrong file type or an oversized image used to
+  // return quietly here, so a user who dropped a PDF saw nothing happen at
+  // all. fileToBase64 validates and throws a readable message instead.
   const handleFile = useCallback(async (file) => {
-    if (!file || !file.type.startsWith('image/')) return
     try {
       const { base64, mediaType } = await fileToBase64(file)
       setUploadedImage(`data:${mediaType};base64,${base64}`)
@@ -120,24 +126,29 @@ export default function Panel() {
       applyWithJson(await analyseFabric({ imageBase64: base64, mediaType }), 'LIVE')
     } catch (err) {
       setAnalysing(false)
-      setSource(err instanceof InvalidAnalysisError ? 'FALLBACK' : 'CACHED')
+      if (err instanceof RateLimitedError) {
+        // Cached values are already showing, so this is a note, not a failure.
+        setAnalysisError(err.message)
+      } else {
+        setSource(err instanceof InvalidAnalysisError ? 'FALLBACK' : 'CACHED')
+      }
     }
-  }, [setDescription, setUploadedImage, applyWithJson, setAnalysing])
+  }, [setDescription, setUploadedImage, applyWithJson, setAnalysing, setAnalysisError])
 
   return (
     <>
       <div
         onClick={() => setCollapsed(c => !c)}
         style={{
-          position: 'fixed', right: collapsed ? 0 : 220, top: '50%',
+          position: 'fixed', right: collapsed ? 0 : 236, top: '50%',
           transform: 'translateY(-50%)',
           width: 16, height: 48,
-          background: 'rgba(0,0,0,0.6)',
-          border: '0.5px solid rgba(255,255,255,0.1)',
-          borderRight: collapsed ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
+          background: 'var(--paper)',
+          border: '1px solid var(--rule)',
+          borderRight: collapsed ? '1px solid var(--rule)' : 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', zIndex: 20,
-          fontSize: '8px', color: 'rgba(255,255,255,0.4)',
+          fontSize: '9px', color: 'var(--ink-mid)',
           transition: 'right 0.3s',
           letterSpacing: 0,
         }}
@@ -153,6 +164,46 @@ export default function Panel() {
           minWidth: 220,
         }}
       >
+      {/* The vision→parameters→shader step is the whole mechanism, so it
+          leads the panel rather than sitting in a corner readout. Stacked
+          vertically because the panel is 220px wide. */}
+      <section className="panel-section">
+        <div className="section-label">PIPELINE</div>
+        <div className="flow">
+          <div className="flow-step">
+            {uploadedImage
+              ? <img src={uploadedImage} alt="current input" className="flow-thumb" />
+              : <div className="flow-thumb flow-thumb-empty">—</div>}
+            <div className="flow-body">
+              <div className="flow-title">YOUR PHOTO</div>
+              <div className="flow-sub">{uploadedImage ? 'sent to Claude Vision' : 'upload or pick a swatch'}</div>
+            </div>
+          </div>
+          <div className="flow-arrow">↓</div>
+          <div className="flow-step">
+            <div className="flow-nums">
+              {analysisResult
+                ? [analysisResult.rigidity, analysisResult.flow, analysisResult.specular]
+                    .map((v, i) => <span key={i}>{v.toFixed(2)}</span>)
+                : <span>—</span>}
+              <span className="flow-chip" style={{ background: colorHex }} />
+            </div>
+            <div className="flow-body">
+              <div className="flow-title">CLAUDE READS</div>
+              <div className="flow-sub">4 constrained numbers</div>
+            </div>
+          </div>
+          <div className="flow-arrow">↓</div>
+          <div className="flow-step">
+            <div className="flow-uniforms">uRigidity<br />uFlow<br />uSpecular<br />uColor</div>
+            <div className="flow-body">
+              <div className="flow-title">SHADER</div>
+              <div className="flow-sub">rendering live, left</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="panel-section">
         <div className="section-label">SWATCHES</div>
         <div className="preset-row">
@@ -182,16 +233,16 @@ export default function Panel() {
         {isAnalysing && (
           <div style={{marginTop:8}}>
             <div style={{
-              fontSize:'8px', letterSpacing:'0.16em',
-              color:'rgba(255,255,255,0.35)', marginBottom:5
+              fontSize:'9px', letterSpacing:'0.16em',
+              color:'var(--ink-mid)', marginBottom:5
             }}>CLAUDE ANALYSING...</div>
             <div style={{
-              width:'100%', height:'1px', background:'#111',
+              width:'100%', height:'1px', background:'var(--rule)',
               position:'relative', overflow:'hidden'
             }}>
               <div style={{
                 position:'absolute', top:0, height:'1px',
-                background:'rgba(255,255,255,0.6)',
+                background:'var(--ink)',
                 animation:'shimmer 1.4s ease-in-out infinite',
                 width:'45%',
               }}/>
@@ -206,6 +257,13 @@ export default function Panel() {
             onKeyDown={e=>e.key==='Enter'&&runAnalysis({description:text})} />
           <button className="btn" onClick={()=>runAnalysis({description:text})}
             disabled={isAnalysing||!text.trim()}>→</button>
+        </div>
+        {/* Honest boundary: the model classifies whatever it is given. An ink
+            line drawing returns rigidity 0.92 as confidently as real leather. */}
+        <div className="boundary-note">
+          Assumes the input is a material. It reads properties — it does not
+          verify the photo is fabric, and will answer confidently for a
+          drawing or a landscape.
         </div>
         {analysisError && <div className="status error" style={{marginTop:8}}>✕ {analysisError}</div>}
       </section>
@@ -227,11 +285,17 @@ export default function Panel() {
           CLAUDE ANALYSIS
           {source && (
             <span title={SOURCE_TITLE[source]}
-              style={{ float:'right', color:'rgba(255,255,255,0.45)', letterSpacing:'0.2em' }}>
+              style={{ float:'right', color:'var(--ink-mid)', letterSpacing:'0.2em' }}>
               {SOURCE_TAG[source]}
             </span>
           )}
         </div>
+        {source === 'CACHED' && (
+          <div className="source-note">stored values — upload a photo to run Claude on it</div>
+        )}
+        {source === 'LIVE' && (
+          <div className="source-note">read from your image just now</div>
+        )}
         {analysisResult ? (
           <>
             <ParamBar label="RIGIDITY" value={analysisResult.rigidity} />
@@ -245,6 +309,7 @@ export default function Panel() {
             {rawJson && (
               <>
                 <pre className="raw-json">{rawJson}</pre>
+                <div className="uniform-map-label">the model&rsquo;s reading, wired straight to the shader&rsquo;s uniforms</div>
                 <div className="uniform-map">
                   rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
                 </div>
@@ -252,10 +317,50 @@ export default function Panel() {
             )}
           </>
         ) : (
-          <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.28)', lineHeight: 1.7 }}>
+          <div style={{ fontSize: '9px', letterSpacing: '0.12em', color: 'var(--ink-dim)', lineHeight: 1.7 }}>
             NO ANALYSIS YET — PICK A SWATCH OR USE INPUT ABOVE
           </div>
         )}
+      </section>
+
+      {/* Two photographs of similar colour but opposite structure. Divergent
+          numbers are the evidence it reads properties rather than converging.
+          Values are unedited API output — see data/tested-on.json. */}
+      <section className="panel-section">
+        <div className="section-label">TESTED ON</div>
+        <div className="tested-head">
+          <span />
+          <span>RIG</span><span>FLW</span><span>SPC</span>
+        </div>
+        {TESTED_ON.photographs.map((r) => (
+          <div className="tested-row" key={r.label}>
+            <span className="tested-label">{r.label}<em>{r.note}</em></span>
+            <span>{r.rigidity.toFixed(2)}</span>
+            <span>{r.flow.toFixed(2)}</span>
+            <span>{r.specular.toFixed(2)}</span>
+          </div>
+        ))}
+        <div className="tested-note">
+          Photographs separate sharply — same red hue family, inverted
+          rigidity and flow.
+        </div>
+
+        {/* The control group. These converge, and saying so is the point:
+            it shows what the tool discriminates on and what it cannot. */}
+        <div className="tested-subhead">SOLID-COLOUR SWATCHES · CONTROL</div>
+        {TESTED_ON.swatches.map((r) => (
+          <div className="tested-row tested-row-muted" key={r.label}>
+            <span className="tested-label">{r.label}<em>{r.note}</em></span>
+            <span>{r.rigidity.toFixed(2)}</span>
+            <span>{r.flow.toFixed(2)}</span>
+            <span>{r.specular.toFixed(2)}</span>
+          </div>
+        ))}
+        <div className="tested-note">
+          Silk and linen return identical values and denim is within 0.04.
+          With no weave in the image there is only hue to read. Real fabric
+          photographs are the fix.
+        </div>
       </section>
 
       {analysisHistory.length > 1 && (
@@ -264,18 +369,18 @@ export default function Panel() {
           {analysisHistory.map((s, i) => (
             <div key={s.timestamp} style={{
               marginBottom: 8, opacity: 1 - i * 0.25,
-              borderLeft: `0.5px solid rgba(255,255,255,${0.3 - i * 0.1})`,
+              borderLeft: `1px solid var(--rule-strong)`,
               paddingLeft: 8,
             }}>
-              <div style={{ fontSize: '8px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.3)', marginBottom: 3 }}>
+              <div style={{ fontSize: '9px', letterSpacing: '0.12em', color: 'var(--ink-dim)', marginBottom: 3 }}>
                 STATE {i + 1} {i === 0 ? '· CURRENT' : ''}
               </div>
-              <div style={{ fontSize: '8px', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)' }}>
+              <div style={{ fontSize: '9px', letterSpacing: '0.1em', color: 'var(--ink-mid)' }}>
                 R:{s.rigidity.toFixed(2)} F:{s.flow.toFixed(2)} S:{s.specular.toFixed(2)}
               </div>
             </div>
           ))}
-          <div style={{ fontSize: '8px', letterSpacing: '0.14em', color: 'rgba(255,255,255,0.2)', marginTop: 4 }}>
+          <div style={{ fontSize: '9px', letterSpacing: '0.14em', color: 'var(--ink-dim)', marginTop: 4 }}>
             MORPHING BETWEEN STATES →
           </div>
         </section>
