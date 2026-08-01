@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import SWATCH_PARAMS from '../data/swatch-params.json'
 
-// First paint is never an empty state: the silk swatch's cached parameters
+// First paint is never an empty state: the cotton swatch's cached parameters
+// (pale and soft — a material, not the spiky high-rigidity end of the range)
 // are the initial state, so the full form renders before any interaction.
-const INITIAL = SWATCH_PARAMS.silk
+const INITIAL = SWATCH_PARAMS.cotton
 
 export const useStore = create((set, get) => ({
   rigidity: INITIAL.rigidity, flow: INITIAL.flow, specular: INITIAL.specular,

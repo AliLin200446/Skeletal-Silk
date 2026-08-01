@@ -1,6 +1,7 @@
 {
-  "silk":    { "rigidity": 0.18, "flow": 0.88, "specular": 0.86, "color": [0.88, 0.84, 0.8] },
-  "denim":   { "rigidity": 0.55, "flow": 0.35, "specular": 0.15, "color": [0.2, 0.27, 0.37] },
-  "leather": { "rigidity": 0.78, "flow": 0.1,  "specular": 0.58, "color": [0.36, 0.16, 0.12] },
-  "linen":   { "rigidity": 0.48, "flow": 0.4,  "specular": 0.12, "color": [0.78, 0.74, 0.66] }
+  "_provenance": "Unedited output from the deployed /api/analyse endpoint (claude-sonnet-4-5), measured 2026-07-27 on these exact 1024px files. Used as the instant-apply cache; a live call re-runs on click and replaces them.",
+  "brocade": { "rigidity": 0.78, "flow": 0.22, "specular": 0.52, "color": [0.5686, 0.451, 0.3725] },
+  "knit":    { "rigidity": 0.52, "flow": 0.38, "specular": 0.12, "color": [0.1765, 0.1882, 0.2039] },
+  "cotton":  { "rigidity": 0.48, "flow": 0.38, "specular": 0.12, "color": [0.8627, 0.8431, 0.8824] },
+  "flat":    { "rigidity": 0.5,  "flow": 0.4,  "specular": 0.15, "color": [0.5882, 0.5882, 0.5647] }
 }

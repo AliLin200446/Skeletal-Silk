@@ -55,7 +55,10 @@ export default function Panel() {
   // Provenance of the current parameters + the exact JSON payload applied.
   // Initial values mirror the silk cached params seeded in the store.
   const [source, setSource] = useState('CACHED')
-  const [rawJson, setRawJson] = useState(() => JSON.stringify(PRESETS[0].params, null, 2))
+  // Seeded from the store, not PRESETS[0]: the two used to be coupled by
+  // array order, so reordering swatches silently desynced the JSON readout
+  // from the sliders.
+  const [rawJson, setRawJson] = useState(() => JSON.stringify(useStore.getState().analysisResult, null, 2))
 
   const uploadedImage  = useStore(s => s.uploadedImage)
   const analysisResult = useStore(s => s.analysisResult)
@@ -332,7 +335,7 @@ export default function Panel() {
           <span />
           <span>RIG</span><span>FLW</span><span>SPC</span>
         </div>
-        {TESTED_ON.photographs.map((r) => (
+        {TESTED_ON.fabrics.map((r) => (
           <div className="tested-row" key={r.label}>
             <span className="tested-label">{r.label}<em>{r.note}</em></span>
             <span>{r.rigidity.toFixed(2)}</span>
@@ -340,15 +343,11 @@ export default function Panel() {
             <span>{r.specular.toFixed(2)}</span>
           </div>
         ))}
-        <div className="tested-note">
-          Photographs separate sharply — same red hue family, inverted
-          rigidity and flow.
-        </div>
 
-        {/* The control group. These converge, and saying so is the point:
-            it shows what the tool discriminates on and what it cannot. */}
-        <div className="tested-subhead">SOLID-COLOUR SWATCHES · CONTROL</div>
-        {TESTED_ON.swatches.map((r) => (
+        {/* The control earns its row: with no weave to read, the answer it
+            gets back is the shape of the tool's ignorance. */}
+        <div className="tested-subhead">FLAT SWATCH · CONTROL</div>
+        {TESTED_ON.control.map((r) => (
           <div className="tested-row tested-row-muted" key={r.label}>
             <span className="tested-label">{r.label}<em>{r.note}</em></span>
             <span>{r.rigidity.toFixed(2)}</span>
@@ -357,9 +356,9 @@ export default function Panel() {
           </div>
         ))}
         <div className="tested-note">
-          Silk and linen return identical values and denim is within 0.04.
-          With no weave in the image there is only hue to read. Real fabric
-          photographs are the fix.
+          Brocade separates on all three. Knit and cotton share a physical
+          reading and are told apart only by colour. The flat control
+          returns a generic mid answer — that is what no texture looks like.
         </div>
       </section>
 
