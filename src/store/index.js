@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import SWATCH_PARAMS from '../data/swatch-params.json'
-import { cancelAll } from '../utils/requests'
+import { cancelAll, markTouched } from '../utils/requests'
 
 export const MAX_LAYERS = 6
 
@@ -52,6 +52,7 @@ export function makeLayer(init = {}) {
     rawJson: JSON.stringify(params, null, 2),
     status: 'idle',
     requestId: null,
+    keptKeys: [],
     error: null,
     ...init,
     // init.params is already folded into `params` above; drop any raw copy so
@@ -266,6 +267,9 @@ export const useStore = create((set, get) => ({
   // A uniform change applies to every selected layer at once.
   setSelectedParam: (key, value) => {
     get().mergedPush(`param:${key}`)
+    // Record the edit against any request open on these layers, so a response
+    // still in flight does not overwrite what the user just decided.
+    for (const id of get().selectedIds) markTouched(id, key)
     set((s) => ({
       layers: s.layers.map((l) => (
         s.selectedIds.includes(l.id)
@@ -275,11 +279,16 @@ export const useStore = create((set, get) => ({
     }))
   },
 
-  applyAnalysis: (id, params, source) => set((s) => ({
+  // `keptKeys` names the params the model wanted to set and did not, because
+  // the user had already edited them. It is document state, not request state:
+  // it explains why the numbers on screen are not purely the model's reading,
+  // so it belongs in the snapshot and travels with undo.
+  applyAnalysis: (id, params, source, keptKeys = []) => set((s) => ({
     layers: s.layers.map((l) => (
       l.id === id
         ? {
             ...l,
+            keptKeys,
             params: cloneParams(params),
             rawJson: JSON.stringify(params, null, 2),
             source,

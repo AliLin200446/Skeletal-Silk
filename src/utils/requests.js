@@ -79,9 +79,25 @@ export function beginRequest(layerId) {
   }
   const requestId = nextId()
   const controller = new AbortController()
-  inflight.set(requestId, { layerId, controller })
+  // `touched` collects the params the user edits by hand while this request is
+  // open. The model's reading is a suggestion; a hand edit is a decision, and
+  // a decision does not get overwritten by a suggestion that was already in
+  // flight when it was made.
+  inflight.set(requestId, { layerId, controller, touched: new Set() })
   lastRequestAt.set(layerId, Date.now())
   return { requestId, controller }
+}
+
+// Called from the store on every hand edit. A no-op unless that layer has a
+// request open, which is the only window where the conflict can arise.
+export function markTouched(layerId, key) {
+  for (const r of inflight.values()) if (r.layerId === layerId) r.touched.add(key)
+}
+
+// Read before endRequest clears the entry.
+export function touchedFor(requestId) {
+  const entry = inflight.get(requestId)
+  return entry ? [...entry.touched] : []
 }
 
 // True only while the request is still the one we are waiting on. Cancelling,

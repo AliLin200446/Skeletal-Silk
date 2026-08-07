@@ -136,6 +136,25 @@ window.__undoInvariant = async function undoInvariant() {
     await settle()
   })
 
+  // A hand edit made WHILE an analysis is in flight. Two actions, two entries,
+  // and the landing itself is not an entry. The boundary here is the easy one
+  // to get wrong: if the landing pushed history, undo would step through a
+  // state that is half model and half hand.
+  await step('add layer 4', async () => { document.querySelector('.layer-add').click() })
+  await step('swatch: KNIT on layer 4, not awaited', async () => {
+    click(rows()[3]); await ticks(8)
+    document.querySelectorAll('.preset')[1].click()
+    // wait only until it is airborne, not until it lands
+    const t = performance.now()
+    while (performance.now() - t < 8000 &&
+           rows()[3].querySelector('.layer-status').textContent.trim() !== '◌') await tick()
+  })
+  await step('hand edit specular mid-flight', async () => {
+    setRange(document.querySelectorAll('input[type=range]')[2], 0.91)
+  })
+  await settle()        // the landing merges, and must NOT push an entry
+  await waitMs(600)
+
   // Batch edit across a multi-selection. One action, one entry, all layers.
   await step('multi-select 1-3 and set flow 0.66 on all', async () => {
     click(rows()[0]); await ticks(8)

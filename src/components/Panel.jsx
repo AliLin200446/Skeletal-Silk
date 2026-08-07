@@ -5,7 +5,7 @@ import {
   InvalidAnalysisError,
 } from '../utils/analyseFabric'
 import {
-  beginRequest, endRequest, isLive, cancelRequest,
+  beginRequest, endRequest, isLive, cancelRequest, touchedFor,
   RateLimitedError, AnalysisCancelledError, MAX_CONCURRENT,
 } from '../utils/requests'
 import { PRESETS } from '../data/presets'
@@ -113,8 +113,16 @@ export default function Panel() {
 
     try {
       const params = await analyseFabric({ ...payload, controller })
-      if (!mayLand()) return
-      applyAnalysis(id, params, 'LIVE')
+      const layer = mayLand()
+      if (!layer) return
+      // The model's reading is a suggestion; a hand edit made while it was in
+      // flight is a decision. Params the user touched during the request keep
+      // their current value, and the layer records which ones, so the panel
+      // can say why the numbers are not purely the model's.
+      const kept = touchedFor(requestId)
+      const merged = { ...params }
+      for (const key of kept) merged[key] = layer.params[key]
+      applyAnalysis(id, merged, 'LIVE', kept)
     } catch (err) {
       if (err instanceof AnalysisCancelledError) return   // the cancel already set the state
       if (!mayLand()) return

@@ -120,8 +120,14 @@ export default function LayerInspector() {
         {primary.source === 'CACHED' && (
           <div className="source-note">stored values — upload a photo to run Claude on it</div>
         )}
-        {primary.source === 'LIVE' && (
+        {primary.source === 'LIVE' && !primary.keptKeys?.length && (
           <div className="source-note">read from your image just now</div>
+        )}
+        {!!primary.keptKeys?.length && (
+          <div className="source-note">
+            read from your image, except {primary.keptKeys.join(' and ').toUpperCase()},
+            which you set by hand while it was reading
+          </div>
         )}
 
         <ParamBar label="RIGIDITY" value={p.rigidity} />
