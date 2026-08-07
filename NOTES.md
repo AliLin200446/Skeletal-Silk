@@ -75,15 +75,10 @@ wrong, and it fails in the direction of telling you what you wanted to hear.
 The acceptance test is always whether the thing is actually there, never
 whether a check says it is.**
 
-The five:
-
-| what reported success | what was true |
-|---|---|
-| `gl.finish()` timing: 0.17 ms/frame for a 253k-vertex sphere | it does not block in Chrome; that was command submission, not rendering. Real figure 1.20 ms |
-| `git fsck \| tail` exit code 0 | `$?` after a pipeline is the last command's. That was `tail` succeeding |
-| `git fsck` printing `dangling blob/tree/commit` | not corruption. Reading those as damage produced a false "10 repos corrupted"; the real count was 1 |
-| `git status -sb \| head -3` showing two deleted files | there were sixteen |
-| `git bundle verify`: "is okay, records a complete history" | cloning it restored **0 of 21** files. The ref was under `refs/backup/`, which `clone` does not check out |
+It was five instances when this was written. The multi-layer build added a
+sixth, and a second failure mode alongside it. The full list, and the pair of
+questions the two modes reduce to, are in **Before you trust a green result**
+below — that table supersedes the one that used to sit here.
 
 ## Before using truncated output, check what was cut
 
@@ -151,19 +146,123 @@ tells you nothing about which one is true.
 
 ---
 
+## Before you trust a green result, ask two questions
+
+Two failure modes ran through the whole multi-layer build. Neither is exotic,
+and both are cheap to check, but each one produced a confident wrong answer
+that survived until something else contradicted it.
+
+**Was the measurement itself right?** Six times a tool reported success and
+the tool was wrong:
+
+| reported | actually |
+|---|---|
+| `gl.finish()` timing: 0.17 ms/frame for a 253k-vertex sphere | it does not block in Chrome. That was command submission, not rendering. Real figure 1.20 ms |
+| `git fsck \| tail` exit code 0 | `$?` after a pipeline is the last command's. That was `tail` succeeding |
+| `git fsck` printing `dangling blob/tree/commit` | not corruption. Read as damage it produced a false "10 repos corrupted"; the real count was 1 |
+| `git status -sb \| head -3` showing two deleted files | there were sixteen |
+| `git bundle verify`: "is okay, records a complete history" | cloning it restored **0 of 21** files. The ref sat under `refs/backup/`, which `clone` does not check out |
+| `while (glyph !== '')` waiting for an analysis to land | exits immediately when the layer is idle. Reported LANDED 0 with a real API response already in hand |
+
+**Are the pass state and the fail state distinguishable?** Three times a test
+would have passed no matter what the code did:
+
+- **BROCADE.** Cancelled an analysis and confirmed the numbers did not change,
+  against a live response that happened to be byte-identical to the cached
+  values it was compared with. Re-run with COTTON, whose live specular is 0.18
+  against a cached 0.12, and one digit carried the whole proof.
+- **MIXED.** The multi-selection readout can only be shown to be honest if the
+  selected layers actually disagree. Made two of them differ first, then
+  checked the panel said MIXED rather than a number.
+- **Reorder.** Dragged an analysing row and confirmed the response landed on
+  it, on a board where every row already showed the same numbers the model
+  returned. Re-run with the other rows set to 0.21 and 0.87, so a mislanding
+  would have overwritten a value with a name.
+
+Together: **before accepting a pass, ask whether the measurement is sound and
+whether a failure would have looked different.** Neither question is answered
+by the result itself.
+
+---
+
 ## Open
 
-Multi-layer refactor: Steps 1-3 done and pushed on `feat/multi-layer`.
-Steps 4-7 blocked on hand verification of races A-D by the author.
-Run `vercel dev`, follow the four steps in the Step 3 report.
-Do not start Step 4 until that verification is confirmed.
+### What the seven steps did
 
-Step 5 follow-up: batch edit may make the third landing check
-reachable. When it does, verify with fault injection that it
-actually fires. Do not assume a written check works.
+1. **Layer data model.** One image and one result became up to six, with the
+   component split that made the rest possible.
+2. **One mesh and one material per layer**, on a shared geometry. Killed the
+   morph slots, which were why one preset measured two different colours on
+   consecutive frames.
+3. **Cancellable requests and a landing check.** The reason for the whole
+   change: six layers means six things in flight, and a response may no longer
+   have anywhere honest to land.
+4. **Undo stack**, with an explicit rule for where an entry begins: the moment
+   before an action changes anything visible. Arrived at by getting it wrong.
+5. **Multi-select and batch edit.** The behaviours already worked; what was
+   missing was a readout that admitted when the selection disagreed.
+6. **Drag reorder** on HTML5 drag events, no new dependency. Requests are keyed
+   by layer id, never by index, so moving a row cannot misroute a response.
+7. **Usage.** Real token counts passed through from the API, three separate
+   counters, and the rate on screen with its source and check date.
 
-STYLE.md reconciliation with the portfolio STYLE: not started.
-First decision is which file is canonical.
+### Guards that have never fired
 
-cac-internal-docs still has no remote. Local mirror only, at
+Each is annotated in the code with the same information. A guard that has never
+run is untested code, and describing it as working is how a codebase acquires
+protections nobody has seen work.
+
+| guard | state | why | what would open it |
+|---|---|---|---|
+| landing check 1, request still live | **verified 2026-08-07** | fault injection: abort suppressed so a real 200 arrived 2.4s after a cancel; specular held at the cached 0.12 where the arriving body carried 0.18 | n/a |
+| landing check 2, layer still exists | never fired | every path that removes a layer aborts first (`removeLayer` to `cancelLayer`, undo to `cancelAll`), both with `AnalysisCancelledError`, and the catch returns on that before `mayLand` runs | a layer disappearing without its request being aborted, or an abort not carrying `AnalysisCancelledError` |
+| landing check 3, layer still owns this request | never fired | exactly one `beginRequest` call site, targeting `primary.id`. Multi-select widens which layers a uniform edit writes to, not which get analysed | analysing a whole selection at once, or a second `beginRequest` call site that can target a busy layer |
+| `isLayerBusy`, this layer is already analysing | never fired | unreachable from the UI: the preset buttons carry `disabled={busy}`, so a second click never reaches `beginRequest` | the text-input or drop path starting an analysis on a busy layer |
+
+Step 5 was expected to open check 3 and did not. Step 4's undo was expected to
+open check 2 and did not. Both were checked after building, not predicted.
+
+### What the harness covers
+
+`experiments/undo-invariant.js` drives the real UI and asserts that every state
+reachable by undo is a state the user passed through. Eleven actions, eleven
+undo steps, eleven redo steps.
+
+Covered: add, swatch, file drop, text submit, uniform change, multi-select
+batch edit, a hand edit made mid-flight, reorder, delete.
+
+Not covered: the four race behaviours (they need a slow request, and the stub
+that provides one is built, measured and reverted rather than committed);
+anything visual; the cooldown and concurrency guards; and any path that needs
+a real pointer, since the drag is synthesised from the event sequence the
+component listens to rather than from a real gesture.
+
+### Left for the author to verify by hand
+
+- Races A to D on `vercel dev` — cancel, mid-flight remove, concurrency cap,
+  per-layer cooldown. The automated runs pass; these are the ones that were
+  meant to be confirmed by a person.
+- **That a multi-layer board actually renders.** Every screenshot after the
+  first shows a black canvas. WebGL context is not lost and the canvas is
+  correctly sized, so this is almost certainly the hidden pane pausing rAF, but
+  it has not been seen with eyes.
+- Whether the spinner reads as clickable, and whether `◌` and `⊘` are legible
+  at 9px.
+- The 8s cooldown as a product decision. Landing times observed: 3.2, 3.4, 3.6,
+  3.7 and 4.1 seconds, so 8s is roughly twice the slowest.
+- Native `CMD Z` inside the text box. The global handler correctly leaves the
+  keystroke to the browser; what the browser then does could not be driven
+  synthetically. The suspicion, stated as inference not observation, is that
+  native undo fires an `input` event, which reaches `setDescription`, which
+  pushes another history entry rather than undoing one.
+
+### Still open from before
+
+STYLE.md reconciliation with the portfolio STYLE: not started. First decision
+is which file is canonical.
+
+`cac-internal-docs` still has no remote. Local mirror only, at
 `~/Vault/git-mirrors/`. A private remote is the actual answer.
+
+`assets/A-E.JPG` are out of git history, but the pre-rewrite mirrors are the
+only copies of the old SHAs and they live on one machine.
