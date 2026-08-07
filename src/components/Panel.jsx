@@ -2,8 +2,12 @@ import { useRef, useState, useCallback } from 'react'
 import { useStore, selectPrimary, selectImageSrc } from '../store'
 import {
   analyseFabric, fileToBase64, imageUrlToBase64,
-  InvalidAnalysisError, RateLimitedError,
+  InvalidAnalysisError,
 } from '../utils/analyseFabric'
+import {
+  beginRequest, endRequest, isLive, cancelRequest,
+  RateLimitedError, AnalysisCancelledError, MAX_CONCURRENT,
+} from '../utils/requests'
 import { PRESETS } from '../data/presets'
 import TESTED_ON from '../data/tested-on.json'
 import LayerList from './LayerList'
@@ -21,8 +25,14 @@ export default function Panel() {
   const patchLayer = useStore((s) => s.patchLayer)
   const applyAnalysis = useStore((s) => s.applyAnalysis)
 
+  const layers = useStore((s) => s.layers)
+
   const primaryImage = selectImageSrc({ images }, primary)
   const busy = primary?.status === 'analysing'
+  // Counted off the layers rather than the request map so it re-renders on its
+  // own. The two cannot drift: a layer is 'analysing' exactly while it owns a
+  // live requestId.
+  const running = layers.filter((l) => l.status === 'analysing').length
 
   // Analysis targets the selected layer. Swatches and uploads replace that
   // layer's image; "+ ADD LAYER" is the only way to grow the board, so a
@@ -30,21 +40,61 @@ export default function Panel() {
   const runOnPrimary = useCallback(async (payload, cachedParams) => {
     if (!primary) return
     const id = primary.id
-    if (cachedParams) applyAnalysis(id, cachedParams, 'CACHED')
-    patchLayer(id, { status: 'analysing', error: null })
+
+    let requestId, controller
     try {
-      const params = await analyseFabric(payload)
+      ({ requestId, controller } = beginRequest(id))
+    } catch (err) {
+      // Refused before any money was spent. Not an error state for the layer.
+      patchLayer(id, { status: 'idle', error: err.message })
+      return
+    }
+
+    if (cachedParams) applyAnalysis(id, cachedParams, 'CACHED')
+    patchLayer(id, { status: 'analysing', requestId, error: null })
+
+    // Three questions, all of which must still be yes before a response is
+    // allowed to write anything. They fail for three different reasons and one
+    // check cannot cover the others:
+    //   1. the request is still live      — it was not cancelled while open
+    //   2. the layer still exists         — it was not removed while open
+    //   3. the layer still owns this id   — a newer request did not replace it
+    // Without these, a slow response from a deleted or re-analysed layer lands
+    // on whatever is sitting in that slot now.
+    const mayLand = () => {
+      if (!isLive(requestId)) return null
+      const layer = useStore.getState().layers.find((l) => l.id === id)
+      if (!layer) return null
+      if (layer.requestId !== requestId) return null
+      return layer
+    }
+
+    try {
+      const params = await analyseFabric({ ...payload, controller })
+      if (!mayLand()) return
       applyAnalysis(id, params, 'LIVE')
     } catch (err) {
+      if (err instanceof AnalysisCancelledError) return   // the cancel already set the state
+      if (!mayLand()) return
       if (err instanceof InvalidAnalysisError) {
-        patchLayer(id, { status: 'idle', source: 'FALLBACK' })
+        patchLayer(id, { status: 'idle', source: 'FALLBACK', requestId: null })
       } else if (err instanceof RateLimitedError) {
-        patchLayer(id, { status: 'idle', error: err.message })
+        patchLayer(id, { status: 'idle', error: err.message, requestId: null })
       } else {
-        patchLayer(id, { status: 'error', error: err.message })
+        patchLayer(id, { status: 'error', error: err.message, requestId: null })
       }
+    } finally {
+      endRequest(requestId)
     }
   }, [primary, applyAnalysis, patchLayer])
+
+  const cancelPrimary = useCallback(() => {
+    if (!primary?.requestId) return
+    // Order matters: mark the layer first. cancelRequest aborts the fetch, and
+    // the rejection handler reads this layer to decide whether to write.
+    patchLayer(primary.id, { status: 'cancelled', requestId: null, error: null })
+    cancelRequest(primary.requestId)
+  }, [primary, patchLayer])
 
   const handlePreset = useCallback(async (preset) => {
     if (!primary) return
@@ -181,8 +231,9 @@ export default function Panel() {
 
           {busy && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: '9px', letterSpacing: '0.16em', color: 'var(--ink-mid)', marginBottom: 5 }}>
-                CLAUDE ANALYSING...
+              <div className="analysing-head">
+                <span>CLAUDE ANALYSING... {running} / {MAX_CONCURRENT}</span>
+                <button className="link-btn" onClick={cancelPrimary}>CANCEL</button>
               </div>
               <div style={{ width: '100%', height: '1px', background: 'var(--rule)', position: 'relative', overflow: 'hidden' }}>
                 <div style={{
@@ -190,6 +241,12 @@ export default function Panel() {
                   animation: 'shimmer 1.4s ease-in-out infinite', width: '45%',
                 }} />
               </div>
+            </div>
+          )}
+
+          {primary?.status === 'cancelled' && (
+            <div className="status muted" style={{ marginTop: 8 }}>
+              ⊘ ANALYSIS CANCELLED — NO LIVE READING LANDED
             </div>
           )}
 
@@ -213,7 +270,14 @@ export default function Panel() {
             drawing or a landscape.
           </div>
 
-          {primary?.error && <div className="status error" style={{ marginTop: 8 }}>✕ {primary.error}</div>}
+          {/* A refusal is not a failure. Being told to wait 2 seconds, or that
+              three analyses are already running, leaves the layer idle and
+              nothing broken, so it does not get to use the oxblood. */}
+          {primary?.error && (
+            primary.status === 'error'
+              ? <div className="status error" style={{ marginTop: 8 }}>✕ {primary.error}</div>
+              : <div className="status muted" style={{ marginTop: 8 }}>· {primary.error}</div>
+          )}
         </section>
 
         <LayerInspector />

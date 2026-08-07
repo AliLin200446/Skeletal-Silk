@@ -122,6 +122,10 @@ export const useStore = create((set, get) => ({
             rawJson: JSON.stringify(params, null, 2),
             source,
             status: 'idle',
+            // A landed result ends the request that produced it. Clearing this
+            // here rather than in a second patch keeps "has a live request"
+            // and "is analysing" from ever disagreeing for a frame.
+            requestId: null,
             error: null,
           }
         : l

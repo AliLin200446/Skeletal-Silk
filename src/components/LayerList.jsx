@@ -1,4 +1,5 @@
 import { useStore, selectImageSrc, MAX_LAYERS } from '../store'
+import { cancelLayer, cancelRequest } from '../utils/requests'
 
 const STATUS_GLYPH = {
   idle: '',
@@ -19,6 +20,7 @@ export default function LayerList() {
   const toggleSelect = useStore((s) => s.toggleSelect)
   const selectThrough = useStore((s) => s.selectThrough)
   const removeLayer = useStore((s) => s.removeLayer)
+  const patchLayer = useStore((s) => s.patchLayer)
   const addLayer = useStore((s) => s.addLayer)
 
   const pick = (e, id) => {
@@ -57,14 +59,34 @@ export default function LayerList() {
                   {layer.params.rigidity.toFixed(2)} {layer.params.flow.toFixed(2)} {layer.params.specular.toFixed(2)}
                 </span>
               </span>
-              <span className={`layer-status layer-status-${layer.status}`}>
-                {STATUS_GLYPH[layer.status]}
-              </span>
+              {layer.status === 'analysing' ? (
+                <button
+                  className="layer-status layer-status-analysing"
+                  title="cancel this analysis"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const rid = layer.requestId
+                    patchLayer(layer.id, { status: 'cancelled', requestId: null, error: null })
+                    cancelRequest(rid)
+                  }}
+                >{STATUS_GLYPH.analysing}</button>
+              ) : (
+                <span className={`layer-status layer-status-${layer.status}`}>
+                  {STATUS_GLYPH[layer.status]}
+                </span>
+              )}
               {layers.length > 1 && (
                 <button
                   className="layer-remove"
                   title="remove layer"
-                  onClick={(e) => { e.stopPropagation(); removeLayer(layer.id) }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    // Abort before the layer disappears, otherwise the response
+                    // arrives with nothing to land on and the request runs to
+                    // completion at full cost for a sample that is gone.
+                    cancelLayer(layer.id)
+                    removeLayer(layer.id)
+                  }}
                 >{'×'}</button>
               )}
             </div>

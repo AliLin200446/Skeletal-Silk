@@ -91,6 +91,10 @@ html,body,#root{width:100%;height:100%;background:#000;overflow:hidden;
    error shows the same glyph in ink-dim, so only one thing shouts per screen.
    See STYLE.md. */
 .layer-row.is-selected .layer-status-error{color:var(--ink-err)}
+/* The spinner glyph is the cancel control while a layer is analysing. */
+button.layer-status{background:transparent;border:none;padding:0;cursor:pointer;
+  font-family:var(--font);line-height:1}
+button.layer-status:hover{color:var(--ink)}
 .layer-remove{background:transparent;border:none;cursor:pointer;flex-shrink:0;
   font-family:var(--font);font-size:11px;line-height:1;color:var(--ink-dim);padding:0 2px}
 .layer-remove:hover{color:var(--ink)}
@@ -152,6 +156,15 @@ html,body,#root{width:100%;height:100%;background:#000;overflow:hidden;
 
 .status{font-size:9px;letter-spacing:0.06em;color:var(--ink-mid)}
 .status.error{color:var(--ink-err);animation:none;line-height:1.5}
+/* A cancel is a thing the user did on purpose, not a failure. Ink, not oxblood. */
+.status.muted{color:var(--ink-dim);line-height:1.5}
+
+.analysing-head{display:flex;align-items:baseline;justify-content:space-between;
+  gap:8px;font-size:9px;letter-spacing:0.16em;color:var(--ink-mid);margin-bottom:5px}
+.link-btn{background:transparent;border:none;padding:0;cursor:pointer;
+  font-family:var(--font);font-size:9px;letter-spacing:0.16em;color:var(--ink-mid);
+  border-bottom:1px solid var(--rule)}
+.link-btn:hover{color:var(--ink);border-bottom-color:var(--ink)}
 
 /* Notes and provenance */
 .source-note{margin:-4px 0 10px;font-size:9px;letter-spacing:0.02em;

@@ -1,3 +1,5 @@
+import { AnalysisCancelledError } from './requests'
+
 // Contract violation (non-JSON / bad fields) — distinct from network errors
 // so the caller can fall back to the last valid parameter set.
 export class InvalidAnalysisError extends Error {
@@ -34,35 +36,14 @@ export function validateParams(parsed) {
 // analysing state forever with no way back. Bound it.
 const REQUEST_TIMEOUT_MS = 30_000
 
-// Cheap accidental-spend guard. Every analysis costs money, and a user
-// double-clicking swatches or dragging a folder in can otherwise fire a
-// burst of them. Enforced client-side only — it stops accidents, not abuse.
-const COOLDOWN_MS = 2_500
-let lastRequestAt = 0
-let inFlight = false
-
-export class RateLimitedError extends Error {
-  constructor(msg) {
-    super(msg)
-    this.name = 'RateLimitedError'
-  }
-}
-
-export async function analyseFabric({ imageBase64, mediaType = 'image/jpeg', description }) {
-  if (inFlight) {
-    throw new RateLimitedError('ONE ANALYSIS AT A TIME — THIS ONE IS STILL RUNNING')
-  }
-  const since = Date.now() - lastRequestAt
-  if (since < COOLDOWN_MS) {
-    throw new RateLimitedError(
-      `EASY — WAIT ${Math.ceil((COOLDOWN_MS - since) / 1000)}S BETWEEN ANALYSES`,
-    )
-  }
-
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  inFlight = true
-  lastRequestAt = Date.now()
+// The controller comes from the caller (see utils/requests.js), which is what
+// makes a request cancellable from the UI. Concurrency, per-layer cooldown and
+// cancellation all live there now; this function is transport and validation.
+export async function analyseFabric({ imageBase64, mediaType = 'image/jpeg', description, controller }) {
+  const ctrl = controller ?? new AbortController()
+  // The same controller carries the timeout, so there is exactly one abort
+  // path and signal.reason can say which of the two fired.
+  const timer = setTimeout(() => ctrl.abort(new Error('timeout')), REQUEST_TIMEOUT_MS)
 
   let res
   try {
@@ -70,16 +51,18 @@ export async function analyseFabric({ imageBase64, mediaType = 'image/jpeg', des
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64, mediaType, description }),
-      signal: controller.signal,
+      signal: ctrl.signal,
     })
   } catch (err) {
     if (err?.name === 'AbortError') {
+      const reason = ctrl.signal.reason
+      // A user cancel is not a failure, and must not be reported as one.
+      if (reason instanceof AnalysisCancelledError) throw reason
       throw new Error('ANALYSIS TIMED OUT AFTER 30S — TRY AGAIN OR PICK A SWATCH')
     }
     throw new Error('ANALYSIS UNREACHABLE — CHECK CONNECTION OR TRY A PRESET')
   } finally {
     clearTimeout(timer)
-    inFlight = false
   }
   if (!res.ok) {
     if (res.status === 429) throw new Error('ANALYSIS RATE LIMITED — TRY AGAIN SHORTLY')
