@@ -1,10 +1,8 @@
 uniform float uSpecular;
 uniform vec3  uColor;
-uniform vec3  uColor2;
-uniform vec3  uColor3;
 uniform float uRigidity;
 uniform float uTime;
-uniform float uMorphCycle;
+uniform float uDim;
 
 varying vec3  vNormal;
 varying vec3  vPosition;
@@ -49,9 +47,7 @@ void main() {
   // turned every material grey-purple regardless of its detected colour.
   vec3 silkSheen = mix(vec3(1.0), ird, silk * uSpecular * 0.10);
 
-  float morphA = smoothstep(0.0, 0.5, uMorphCycle);
-  float morphB = smoothstep(0.5, 1.0, uMorphCycle);
-  vec3 colorMix = mix(uColor, mix(uColor2, uColor3, morphB), morphA);
+  vec3 colorMix = uColor;
   // The detected colour arrives in sRGB. Lighting happens in linear space and
   // the result is gamma-encoded on the way out, so using it raw brightened
   // every material twice — oxblood leather rendered as pale grey-pink.
@@ -83,6 +79,11 @@ void main() {
 
   // Gamma
   col = pow(clamp(col, 0.0, 1.0), vec3(1.0 / 2.2));
+
+  // Unselected layers fall back rather than disappear. Applied after gamma so
+  // it reads as a display-space fade, and multiplied toward black instead of
+  // using alpha, which would need transparency sorting across six meshes.
+  col *= uDim;
 
   gl_FragColor = vec4(col, 1.0);
 }

@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useStore, selectPrimary } from '../store'
 
-export default function BoneParticles() {
+export default function BoneParticles({ position = [0,0,0], scale = 1 }) {
   const ref = useRef()
   // Reads the first selected layer. Averaging across a multi-selection
   // would render a material that is not on the board.
@@ -37,7 +37,7 @@ export default function BoneParticles() {
   })
 
   return (
-    <points ref={ref}>
+    <points ref={ref} position={position} scale={scale}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]}/>
       </bufferGeometry>

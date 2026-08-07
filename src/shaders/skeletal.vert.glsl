@@ -3,11 +3,6 @@
 uniform float uTime;
 uniform float uRigidity;
 uniform float uFlow;
-uniform float uRigidity2;
-uniform float uFlow2;
-uniform float uRigidity3;
-uniform float uFlow3;
-uniform float uMorphCycle;
 uniform vec2  uMouse;
 uniform float uMouseRadius;
 
@@ -97,11 +92,12 @@ float surfaceHeight(vec3 p, float t, float flowMix, float rigidMix) {
 void main() {
   vUv = uv;
   vec3 pos = position;
-  // Interpolate flow across 3 states based on morph cycle
-  float morphA = smoothstep(0.0, 0.5, uMorphCycle);
-  float morphB = smoothstep(0.5, 1.0, uMorphCycle);
-  float flowMix    = mix(uFlow,    mix(uFlow2,    uFlow3,    morphB), morphA);
-  float rigidMix   = mix(uRigidity,mix(uRigidity2,uRigidity3,morphB), morphA);
+  // One sample, one material. The three morph slots and uMorphCycle that
+  // cross-faded between recent analyses are gone: every layer owns its own
+  // material now, so there is nothing left to blend against. The local names
+  // stay so the height functions below are untouched.
+  float flowMix  = uFlow;
+  float rigidMix = uRigidity;
   float t = uTime*(0.3+flowMix*0.7);
 
   pos += normal * surfaceHeight(position, t, flowMix, rigidMix);
