@@ -1,16 +1,17 @@
 import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useStore } from '../store'
+import { useStore, selectPrimary } from '../store'
 import vertGLSL from '../shaders/skeletal.vert.glsl?raw'
 import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
 
 export default function SkeletalMesh() {
   const meshRef  = useRef()
-  const rigidity = useStore(s => s.rigidity)
-  const flow     = useStore(s => s.flow)
-  const specular = useStore(s => s.specular)
-  const color    = useStore(s => s.color)
+  const primary  = useStore(selectPrimary)
+  const rigidity = primary.params.rigidity
+  const flow     = primary.params.flow
+  const specular = primary.params.specular
+  const color    = primary.params.color
   const mouse    = useStore(s => s.mouse)
 
   const material = useMemo(() => new THREE.ShaderMaterial({

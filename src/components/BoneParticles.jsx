@@ -1,10 +1,12 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useStore } from '../store'
+import { useStore, selectPrimary } from '../store'
 
 export default function BoneParticles() {
   const ref = useRef()
-  const rigidity = useStore(s => s.rigidity)
+  // Reads the first selected layer. Averaging across a multi-selection
+  // would render a material that is not on the board.
+  const rigidity = useStore(selectPrimary).params.rigidity
 
   const { positions, phases } = useMemo(() => {
     const count = 300

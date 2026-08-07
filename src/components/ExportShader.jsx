@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useStore } from '../store'
+import { useStore, selectPrimary } from '../store'
 import vertGLSL from '../shaders/skeletal.vert.glsl?raw'
 import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
 
@@ -81,10 +81,8 @@ export { materialParams, uniforms, SKELETAL_SILK_VERT, SKELETAL_SILK_FRAG }
 
 export default function ExportShader() {
   const [state, setState] = useState('idle')
-  const rigidity = useStore((s) => s.rigidity)
-  const flow = useStore((s) => s.flow)
-  const specular = useStore((s) => s.specular)
-  const color = useStore((s) => s.color)
+  const primary = useStore(selectPrimary)
+  const { rigidity, flow, specular, color } = primary.params
 
   const handleExport = useCallback(async () => {
     const text = buildExport({ rigidity, flow, specular, color })
