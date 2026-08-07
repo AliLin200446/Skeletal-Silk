@@ -103,6 +103,14 @@ button.layer-status:hover{color:var(--ink)}
 /* A border, not a shadow. See STYLE.md. */
 .layer-row.is-drop-target{border-top:1px solid var(--ink)}
 .layer-add{margin-bottom:0}
+.usage-grid{display:grid;grid-template-columns:1fr auto;gap:3px 8px;font-size:9px;
+  letter-spacing:0.06em;color:var(--ink-mid);font-variant-numeric:tabular-nums}
+.usage-grid span:nth-child(even){color:var(--ink);text-align:right}
+.usage-grid-muted{margin-top:5px;padding-top:5px;border-top:1px solid var(--rule)}
+.usage-grid-muted span:nth-child(even){color:var(--ink-mid)}
+.usage-note{font-size:9px;line-height:1.5;color:var(--ink-dim);margin-top:7px}
+.usage-rate{font-size:9px;line-height:1.5;color:var(--ink-mid);margin-top:7px;
+  letter-spacing:0.06em;font-variant-numeric:tabular-nums}
 .history-row{display:flex;gap:6px}
 .history-row .btn{flex:1;margin-bottom:0}
 /* A disagreement across a multi-selection reads as a word, not a number. */

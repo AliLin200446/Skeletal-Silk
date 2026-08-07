@@ -76,7 +76,10 @@ export async function analyseFabric({ imageBase64, mediaType = 'image/jpeg', des
   } catch {
     throw new InvalidAnalysisError('ANALYSIS RESPONSE IS NOT JSON')
   }
-  return validateParams(parsed)
+  // The usage block rides alongside the parameters. validateParams reads only
+  // the four it knows about, so an absent or malformed usage field can never
+  // affect what the shader is given.
+  return { params: validateParams(parsed), usage: parsed.usage ?? null }
 }
 
 const MAX_EDGE = 1024

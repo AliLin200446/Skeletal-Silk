@@ -22,6 +22,7 @@ export default function LayerList() {
   const selectThrough = useStore((s) => s.selectThrough)
   const removeLayer = useStore((s) => s.removeLayer)
   const patchLayer = useStore((s) => s.patchLayer)
+  const recordCancelled = useStore((s) => s.recordCancelled)
   const addLayer = useStore((s) => s.addLayer)
   const reorderLayers = useStore((s) => s.reorderLayers)
 
@@ -99,7 +100,7 @@ export default function LayerList() {
                     e.stopPropagation()
                     const rid = layer.requestId
                     patchLayer(layer.id, { status: 'cancelled', requestId: null, error: null })
-                    cancelRequest(rid)
+                    if (cancelRequest(rid)) recordCancelled()
                   }}
                 >{STATUS_GLYPH.analysing}</button>
               ) : (
@@ -116,7 +117,7 @@ export default function LayerList() {
                     // Abort before the layer disappears, otherwise the response
                     // arrives with nothing to land on and the request runs to
                     // completion at full cost for a sample that is gone.
-                    cancelLayer(layer.id)
+                    if (cancelLayer(layer.id)) recordCancelled()
                     removeLayer(layer.id)
                   }}
                 >{'×'}</button>

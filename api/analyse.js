@@ -103,7 +103,17 @@ export default async function handler(req, res) {
     } catch {
       return res.status(502).json({ error: 'Analysis returned an unreadable result' })
     }
-    return res.status(200).json(sanitise(parsed))
+    // Pass the upstream token counts through untouched. Added alongside the
+    // analysis, not folded into it: sanitise() still decides every parameter
+    // the shader sees, and this field is ignored by validateParams.
+    return res.status(200).json({
+      ...sanitise(parsed),
+      usage: {
+        input_tokens: msg.usage?.input_tokens ?? null,
+        output_tokens: msg.usage?.output_tokens ?? null,
+        model: msg.model ?? null,
+      },
+    })
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
       return res.status(429).json({ error: 'Analysis is rate limited — try again shortly' })

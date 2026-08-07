@@ -10,6 +10,7 @@ import {
 } from '../utils/requests'
 import { PRESETS } from '../data/presets'
 import TESTED_ON from '../data/tested-on.json'
+import { RATES, estimateUsd } from '../data/rates'
 import LayerList from './LayerList'
 import LayerInspector from './LayerInspector'
 
@@ -28,6 +29,10 @@ export default function Panel() {
   const layers = useStore((s) => s.layers)
   const pushHistory = useStore((s) => s.pushHistory)
   const setDescription = useStore((s) => s.setDescription)
+  const usage = useStore((s) => s.usage)
+  const recordLanded = useStore((s) => s.recordLanded)
+  const recordCancelled = useStore((s) => s.recordCancelled)
+  const recordRefused = useStore((s) => s.recordRefused)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
   const canUndo = useStore((s) => s.past.length > 0)
@@ -57,6 +62,7 @@ export default function Panel() {
       ({ requestId, controller } = beginRequest(id))
     } catch (err) {
       // Refused before any money was spent. Not an error state for the layer.
+      recordRefused()
       patchLayer(id, { status: 'idle', error: err.message })
       return
     }
@@ -112,7 +118,10 @@ export default function Panel() {
     }
 
     try {
-      const params = await analyseFabric({ ...payload, controller })
+      const { params, usage: spent } = await analyseFabric({ ...payload, controller })
+      // Recorded before the landing check. The tokens were spent whether or
+      // not the answer is still wanted.
+      recordLanded(spent)
       const layer = mayLand()
       if (!layer) return
       // The model's reading is a suggestion; a hand edit made while it was in
@@ -136,7 +145,7 @@ export default function Panel() {
     } finally {
       endRequest(requestId)
     }
-  }, [primary, applyAnalysis, patchLayer])
+  }, [primary, applyAnalysis, patchLayer, recordLanded, recordRefused])
 
   const cancelPrimary = useCallback(() => {
     if (!primary?.requestId) return
@@ -144,7 +153,8 @@ export default function Panel() {
     // the rejection handler reads this layer to decide whether to write.
     patchLayer(primary.id, { status: 'cancelled', requestId: null, error: null })
     cancelRequest(primary.requestId)
-  }, [primary, patchLayer])
+    recordCancelled()
+  }, [primary, patchLayer, recordCancelled])
 
   const handlePreset = useCallback(async (preset) => {
     if (!primary) return
@@ -189,10 +199,13 @@ export default function Panel() {
   const travel = useCallback((fn, label) => {
     const { moved, aborted } = fn()
     if (!moved) return
+    // Requests undo aborted cost whatever they cost; they join the cancelled
+    // column, not the landed one.
+    for (let i = 0; i < aborted; i++) recordCancelled()
     setTimeNote(aborted
       ? `${label} CANCELLED ${aborted} ANALYS${aborted === 1 ? 'IS' : 'ES'} IN FLIGHT`
       : null)
-  }, [])
+  }, [recordCancelled])
 
   useEffect(() => {
     if (!timeNote) return
@@ -407,6 +420,40 @@ export default function Panel() {
             Brocade separates on all three. Knit and cotton share a physical
             reading and are told apart only by colour. The flat control
             returns a generic mid answer, which is what no texture looks like.
+          </div>
+        </section>
+
+        {/* Measured, not modelled. Every number here is a count this session
+            actually produced; nothing is projected or extrapolated. */}
+        <section className="panel-section">
+          <div className="section-label">USAGE THIS SESSION</div>
+          <div className="usage-grid">
+            <span>ANALYSES LANDED</span><span>{usage.landed}</span>
+            <span>INPUT TOKENS</span><span>{usage.input.toLocaleString()}</span>
+            <span>OUTPUT TOKENS</span><span>{usage.output.toLocaleString()}</span>
+            <span>ESTIMATED COST</span>
+            <span>${estimateUsd(usage.input, usage.output).toFixed(4)}</span>
+          </div>
+          <div className="usage-grid usage-grid-muted">
+            <span>CANCELLED</span><span>{usage.cancelled}</span>
+            <span>REFUSED</span><span>{usage.refused}</span>
+          </div>
+          <div className="usage-note">
+            Landed analyses report their own token counts, passed through from
+            the API. Cancelled requests left this machine and may well have been
+            billed upstream, but their response never arrived, so their tokens
+            are unknown and are not in the totals above. Refused ones were
+            blocked by the cooldown or the concurrency cap before anything was
+            sent, and cost nothing.
+          </div>
+          <div className="usage-rate">
+            {RATES.model} · ${RATES.inputPerMTok.toFixed(2)} per MTok in ·
+            ${RATES.outputPerMTok.toFixed(2)} per MTok out
+          </div>
+          <div className="usage-note">
+            Rate from {RATES.source}, checked {RATES.verified}. Remaining credit
+            is not shown: reading it needs an admin key, which a browser should
+            never hold.
           </div>
         </section>
 

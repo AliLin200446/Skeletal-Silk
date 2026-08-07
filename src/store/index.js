@@ -144,6 +144,30 @@ export const useStore = create((set, get) => ({
   past: [],
   future: [],
 
+  // Session spend. Not in any snapshot, and deliberately not undoable: undo
+  // aborts requests, it does not un-spend the money they already cost.
+  //
+  // Three counters, not one, because the three are different facts:
+  //   landed    - a response came back and its token counts are known
+  //   cancelled - the request left, the response never arrived. The upstream
+  //               model may well have run and been billed, and there is no
+  //               way from here to know the token count. Counted, never
+  //               guessed at.
+  //   refused   - blocked by the cooldown or the concurrency cap before any
+  //               request was sent. Costs nothing.
+  usage: { landed: 0, input: 0, output: 0, cancelled: 0, refused: 0 },
+
+  recordLanded: (u) => set((s) => ({
+    usage: {
+      ...s.usage,
+      landed: s.usage.landed + 1,
+      input: s.usage.input + (Number(u?.input_tokens) || 0),
+      output: s.usage.output + (Number(u?.output_tokens) || 0),
+    },
+  })),
+  recordCancelled: () => set((s) => ({ usage: { ...s.usage, cancelled: s.usage.cancelled + 1 } })),
+  recordRefused: () => set((s) => ({ usage: { ...s.usage, refused: s.usage.refused + 1 } })),
+
   setMouse: (xy) => set({ mouse: xy }),
 
   // Call BEFORE mutating. Every entry is the state as it was before the action
