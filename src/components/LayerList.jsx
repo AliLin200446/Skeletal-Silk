@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useStore, selectImageSrc, MAX_LAYERS } from '../store'
 import { cancelLayer, cancelRequest } from '../utils/requests'
 
@@ -22,6 +23,12 @@ export default function LayerList() {
   const removeLayer = useStore((s) => s.removeLayer)
   const patchLayer = useStore((s) => s.patchLayer)
   const addLayer = useStore((s) => s.addLayer)
+  const reorderLayers = useStore((s) => s.reorderLayers)
+
+  // Drag state is local: it exists only between dragstart and drop, and a
+  // half-finished drag is not something undo should be able to land on.
+  const [dragIndex, setDragIndex] = useState(null)
+  const [overIndex, setOverIndex] = useState(null)
 
   const pick = (e, id) => {
     if (e.shiftKey) selectThrough(id)
@@ -43,8 +50,33 @@ export default function LayerList() {
           return (
             <div
               key={layer.id}
-              className={`layer-row${on ? ' is-selected' : ''}`}
+              className={`layer-row${on ? ' is-selected' : ''}`
+                + (dragIndex === i ? ' is-dragging' : '')
+                + (overIndex === i && dragIndex !== null && dragIndex !== i ? ' is-drop-target' : '')}
               onClick={(e) => pick(e, layer.id)}
+              draggable
+              onDragStart={(e) => {
+                setDragIndex(i)
+                e.dataTransfer.effectAllowed = 'move'
+                // Some browsers refuse to start a drag without payload.
+                e.dataTransfer.setData('text/plain', String(i))
+              }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                if (overIndex !== i) setOverIndex(i)
+              }}
+              onDragEnd={() => { setDragIndex(null); setOverIndex(null) }}
+              onDrop={(e) => {
+                e.preventDefault()
+                const raw = e.dataTransfer.getData('text/plain')
+                const from = dragIndex !== null ? dragIndex : (raw === '' ? null : Number(raw))
+                setDragIndex(null); setOverIndex(null)
+                // Reordering is keyed by index, but a request in flight is
+                // keyed by layer id, so moving a row cannot misroute a
+                // response or lose one.
+                if (from !== null && Number.isInteger(from) && from !== i) reorderLayers(from, i)
+              }}
             >
               <span className="layer-index">{String(i + 1).padStart(2, '0')}</span>
               {src

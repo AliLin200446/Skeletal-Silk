@@ -98,6 +98,10 @@ button.layer-status:hover{color:var(--ink)}
 .layer-remove{background:transparent;border:none;cursor:pointer;flex-shrink:0;
   font-family:var(--font);font-size:11px;line-height:1;color:var(--ink-dim);padding:0 2px}
 .layer-remove:hover{color:var(--ink)}
+.layer-row{cursor:grab}
+.layer-row.is-dragging{cursor:grabbing;opacity:0.35}
+/* A border, not a shadow. See STYLE.md. */
+.layer-row.is-drop-target{border-top:1px solid var(--ink)}
 .layer-add{margin-bottom:0}
 .history-row{display:flex;gap:6px}
 .history-row .btn{flex:1;margin-bottom:0}

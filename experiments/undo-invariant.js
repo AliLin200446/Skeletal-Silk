@@ -32,10 +32,11 @@
 //   becomes one entry per layer, undo will appear to work while walking back
 //   through layers one at a time, and only this harness will say so.
 //
-// TODO (Step 6): reorder is not covered, because the drag control does not
-//   exist yet. Add a reorder step to the sequence below when it does. A
-//   reorder that is undone must restore the order AND leave every layer's
-//   content untouched, which is a case the current steps cannot reach.
+//   Reorder is covered as of Step 6. The assertion the old TODO asked for is
+//   the one that runs: an undone reorder must restore the order AND leave
+//   every layer's content untouched. The state key is per-row content in row
+//   order, so a reorder that scrambled content would fail on content and a
+//   reorder that failed to revert would fail on order.
 //
 // WHAT IT HAS ALREADY CAUGHT
 //   Both defects this harness first caught were invisible to hand testing:
@@ -96,6 +97,21 @@ window.__undoInvariant = async function undoInvariant() {
 
   const click = (el, opts = {}) =>
     el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...opts }))
+
+  // HTML5 drag, synthesised. A real pointer drag cannot be driven from script,
+  // but the event sequence the component listens to can be, and that sequence
+  // is what the reorder logic actually reads.
+  const dragRow = async (fromEl, toEl, fromIndex) => {
+    const dt = new DataTransfer()
+    fromEl.dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    dt.setData('text/plain', String(fromIndex))
+    await ticks(4)
+    toEl.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    await ticks(4)
+    toEl.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }))
+    await ticks(4)
+    fromEl.dispatchEvent(new DragEvent('dragend', { bubbles: true, cancelable: true, dataTransfer: dt }))
+  }
 
   const setText = (el, v) => {
     const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
@@ -162,6 +178,11 @@ window.__undoInvariant = async function undoInvariant() {
     setRange(document.querySelectorAll('input[type=range]')[1], 0.66)
   })
   await waitMs(600)   // let the merge window close
+
+  // One drag is one entry, however far the row travels.
+  await step('reorder: drag row 1 to position 3', async () => {
+    await dragRow(rows()[0], rows()[2], 0)
+  })
 
   await step('delete layer 3', async () => {
     click(rows()[2]); await ticks(8)
