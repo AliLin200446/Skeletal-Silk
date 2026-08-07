@@ -61,10 +61,22 @@ export default function Panel() {
     //   3. the layer still owns this id   — a newer request did not replace it
     // Without these, a slow response from a deleted or re-analysed layer lands
     // on whatever is sitting in that slot now.
+    //
+    // Only check 1 has ever fired. Verified 2026-08-07 by fault injection:
+    // suppressing the abort so a real 200 came back 2.4s after a cancel, the
+    // response was refused and specular stayed at the cached 0.12 where the
+    // arriving body carried 0.18. Checks 2 and 3 are untested code, see below.
     const mayLand = () => {
       if (!isLive(requestId)) return null
       const layer = useStore.getState().layers.find((l) => l.id === id)
+      // NEVER FIRED as of 2026-08-07. Removing a layer aborts its request, and
+      // the AnalysisCancelledError branch returns before mayLand is consulted,
+      // so check 1 short-circuits every path that reaches here today. Undo in
+      // Step 4 aborts rather than cancels and may be the first thing to reach it.
       if (!layer) return null
+      // NEVER FIRED as of 2026-08-07. Unreachable while a layer can hold only
+      // one live request: the per-layer guard in beginRequest prevents a second
+      // one from ever claiming the same layer. Step 5's batch edit may open it.
       if (layer.requestId !== requestId) return null
       return layer
     }

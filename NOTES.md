@@ -133,6 +133,22 @@ turned out to be genuinely divergent, one of them sharing **no common
 ancestor** with its remote at all. Fetch before believing a divergence
 reading.
 
+## A test that cannot fail is not evidence
+
+Before running a test, check that its pass state and its fail state are
+distinguishable. Run 1 of the landing-check test cancelled a BROCADE analysis
+and confirmed the numbers did not change — but that response came back
+byte-identical to the cached values it was being compared against
+(`0.78 / 0.22 / 0.52`, colour `[0.5686, 0.4510, 0.3725]`). Had the check been
+broken, the screen would have looked exactly the same.
+
+Re-run with COTTON, whose live specular is `0.18` against a cached `0.12`, the
+result became evidence: a real HTTP 200 arrived 2.4 seconds after the cancel
+and the layer still read `0.12`. One digit carried the whole proof.
+
+This is the blank-control-group move. A result that both hypotheses predict
+tells you nothing about which one is true.
+
 ---
 
 ## Open

@@ -33,7 +33,12 @@ const inflight = new Map()
 // global cooldown would punish it. Re-firing the *same* layer is the accident.
 const lastRequestAt = new Map()
 
-export const COOLDOWN_MS = 2_500
+// Real analyses take about 4s. A cooldown shorter than that is unreachable in
+// normal use: the window is measured from the request start, so by the time a
+// result lands the window has already closed. 2.5s was a guessed number, and
+// testing could only reach it by cancelling and re-firing. 8s makes a second
+// look at the same layer a deliberate act rather than a double click.
+export const COOLDOWN_MS = 8_000
 
 // Three at once. This is a cost guard, not a load guard. The tempting design is
 // a queue, but a queue hides the cost: six clicks would drain quietly and the
@@ -56,6 +61,10 @@ export function isLayerBusy(layerId) {
 // Throws RateLimitedError rather than returning null: every rejection here has
 // a reason the user needs to read, and a null would lose it.
 export function beginRequest(layerId) {
+  // NEVER FIRED as of 2026-08-07. Unreachable from the UI today: the preset
+  // buttons carry disabled={busy}, so a second click on an analysing layer
+  // does not reach this function at all. Kept as defence in depth, because the
+  // text-input and drop paths could change. Treat it as untested code.
   if (isLayerBusy(layerId)) {
     throw new RateLimitedError('THIS LAYER IS ALREADY ANALYSING')
   }
