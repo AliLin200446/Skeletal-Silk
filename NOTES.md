@@ -62,3 +62,73 @@ the render probe in the same session.
 Test harness in the repository is a different decision with different
 maintenance costs, and it should be made deliberately, not arrived at by
 forgetting to delete something.
+
+---
+
+# The rule these all turned out to be
+
+A whole session of repo-hygiene work produced five separate instances of one
+mistake, so it gets stated once, plainly:
+
+**A tool reporting success is not success. The measurement itself can be
+wrong, and it fails in the direction of telling you what you wanted to hear.
+The acceptance test is always whether the thing is actually there, never
+whether a check says it is.**
+
+The five:
+
+| what reported success | what was true |
+|---|---|
+| `gl.finish()` timing: 0.17 ms/frame for a 253k-vertex sphere | it does not block in Chrome; that was command submission, not rendering. Real figure 1.20 ms |
+| `git fsck \| tail` exit code 0 | `$?` after a pipeline is the last command's. That was `tail` succeeding |
+| `git fsck` printing `dangling blob/tree/commit` | not corruption. Reading those as damage produced a false "10 repos corrupted"; the real count was 1 |
+| `git status -sb \| head -3` showing two deleted files | there were sixteen |
+| `git bundle verify`: "is okay, records a complete history" | cloning it restored **0 of 21** files. The ref was under `refs/backup/`, which `clone` does not check out |
+
+## Before using truncated output, check what was cut
+
+`head`, `tail`, `grep -m`, `--max-count`. Every one of them will hand you a
+confident partial answer. The question to ask before reading the result is
+whether the truncated part could change the conclusion. If it could, do not
+truncate — count, or filter, or widen.
+
+## A backup is accepted when a restore matches byte for byte
+
+Not when the backup tool says it worked. Every archive made this session was
+cloned back out and compared file by file against a SHA-256 manifest taken
+beforehand:
+
+- `aura-api-62c1dbb.bundle` — `landing.html` 16,055 and `index.html` 1,442 bytes, both matching
+- `miumiu-land-worktree-20260807.bundle` — 21/21 identical
+- `miumiuland-44cf03b.bundle` — 36/36 blobs, 22/22 local-only commits
+- `skeletal-silk-github-20260807.git` — cloned, tracked-tree digest matched the pre-move fingerprint
+
+The first miumiu bundle passed `verify` and restored nothing. Had it stayed on
+the shelf, that would have surfaced on the day it was needed.
+
+## A commit message states intent; the tree states fact
+
+`4d7456f`, "feat: Generation Health panel + layout finalized", looked like the
+most important unbacked-up thing on the machine. Its tree is a single gitlink:
+
+    160000 commit 1bac933...	resonance
+
+No files. The panel work lives in the submodule, which was already on the
+remote. To know what a commit contains, read the tree.
+
+## Git repositories do not go in an iCloud-synced path
+
+`~/Desktop` and `~/Documents` sync by default. iCloud evicts file contents
+inside `.git`, leaving placeholders; git's read then fails and it presents as
+corruption. This cost 12 objects out of this repository, recovered from a
+mirror made ten minutes earlier. Work lives in `~/Applications`, archives in
+`~/Vault`, neither of which syncs.
+
+## A remote is not a backup
+
+The remote can have been force-pushed. A stale local `origin/main` then makes
+`ahead`/`behind` read reassuringly while the histories have actually been
+replaced. Three copies looked merely out of date; after `git fetch` all three
+turned out to be genuinely divergent, one of them sharing **no common
+ancestor** with its remote at all. Fetch before believing a divergence
+reading.
