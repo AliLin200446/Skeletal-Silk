@@ -31,9 +31,18 @@ without competing for attention.
 
 This is a clarification of the original rule, not an exception to it.
 
+**Oxblood is for `status: 'error'` on the selected layer, and nothing else.**
+A refusal is not a failure. Being told to wait two seconds before re-analysing
+a layer, or that three analyses are already running, leaves the layer idle with
+nothing broken and no action required beyond patience. Those render in
+`--ink-dim` with a `·` marker. `✕` and oxblood are reserved for the case where
+something actually went wrong.
+
 ## Other constraints
 
-- **No shadows.** If something needs separation, it gets a border. The
+- **No shadows, and separation is a border.** Not a softened one — no
+  `box-shadow` anywhere, including the hairline-shadow trick for edges. If
+  two surfaces need telling apart, they get a 1px `--rule` border. The
   panel's left edge was a `box-shadow` doing a border's job; it is a
   border now.
 - **No border radius.** Anywhere.
@@ -43,3 +52,9 @@ This is a clarification of the original rule, not an exception to it.
   by a typography audit; several labels sat at 7.5px and were unreadable.
 - **No CJK** in shipped UI copy.
 - **No em dashes** in shipped UI copy.
+
+## Open
+
+- Reconcile with the portfolio STYLE file. Two design systems by the same
+  person that disagree on palette tokens or the shadow rule is worse than
+  either one alone. Not started; decide which is canonical first.
