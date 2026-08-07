@@ -99,6 +99,9 @@ button.layer-status:hover{color:var(--ink)}
   font-family:var(--font);font-size:11px;line-height:1;color:var(--ink-dim);padding:0 2px}
 .layer-remove:hover{color:var(--ink)}
 .layer-add{margin-bottom:0}
+.history-row{display:flex;gap:6px}
+.history-row .btn{flex:1;margin-bottom:0}
+
 
 /* Swatches */
 .preset-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}

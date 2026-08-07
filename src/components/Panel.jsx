@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { useStore, selectPrimary, selectImageSrc } from '../store'
 import {
   analyseFabric, fileToBase64, imageUrlToBase64,
@@ -26,6 +26,17 @@ export default function Panel() {
   const applyAnalysis = useStore((s) => s.applyAnalysis)
 
   const layers = useStore((s) => s.layers)
+  const pushHistory = useStore((s) => s.pushHistory)
+  const setDescription = useStore((s) => s.setDescription)
+  const undo = useStore((s) => s.undo)
+  const redo = useStore((s) => s.redo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
+
+  // Transient, and deliberately not in any snapshot. Undo aborting requests is
+  // a real consequence with a cost attached, and the only moment a user can
+  // connect it to the cause is the moment it happens.
+  const [timeNote, setTimeNote] = useState(null)
 
   const primaryImage = selectImageSrc({ images }, primary)
   const busy = primary?.status === 'analysing'
@@ -50,6 +61,12 @@ export default function Panel() {
       return
     }
 
+    // No pushHistory here. The snapshot point for an action is the moment
+    // before it changes anything visible, and by the time this function runs
+    // the caller has already written the layer's name and thumbnail. Pushing
+    // here recorded a half-applied swatch click: COTTON's name and image with
+    // the previous numbers, a state no sequence of user actions can produce.
+    // Each entry point pushes before its first visible write instead.
     if (cachedParams) applyAnalysis(id, cachedParams, 'CACHED')
     patchLayer(id, { status: 'analysing', requestId, error: null })
 
@@ -69,10 +86,16 @@ export default function Panel() {
     const mayLand = () => {
       if (!isLive(requestId)) return null
       const layer = useStore.getState().layers.find((l) => l.id === id)
-      // NEVER FIRED as of 2026-08-07. Removing a layer aborts its request, and
-      // the AnalysisCancelledError branch returns before mayLand is consulted,
-      // so check 1 short-circuits every path that reaches here today. Undo in
-      // Step 4 aborts rather than cancels and may be the first thing to reach it.
+      // NEVER FIRED as of 2026-08-07, and now with a reason rather than a
+      // guess. Every path that removes a layer aborts its request first:
+      // removeLayer calls cancelLayer, and undo calls cancelAll. Both abort
+      // with AnalysisCancelledError, and the catch below returns on that error
+      // before mayLand is consulted, so the abort path and the cancel path
+      // converge on the same early return. Step 4's undo was expected to reach
+      // this check and does not, for exactly that reason.
+      //
+      // What would make it reachable: a layer disappearing without its request
+      // being aborted, or an abort that does not carry AnalysisCancelledError.
       if (!layer) return null
       // NEVER FIRED as of 2026-08-07. Unreachable while a layer can hold only
       // one live request: the per-layer guard in beginRequest prevents a second
@@ -110,6 +133,9 @@ export default function Panel() {
 
   const handlePreset = useCallback(async (preset) => {
     if (!primary) return
+    // Before the first visible write. The name and thumbnail change here, so
+    // the snapshot has to precede them or undo leaves the identity behind.
+    pushHistory()
     setText('')
     const imageId = putImage(preset.image)
     patchLayer(primary.id, { imageId, description: preset.label.toLowerCase() })
@@ -119,21 +145,57 @@ export default function Panel() {
     } catch (err) {
       patchLayer(primary.id, { status: 'error', error: err.message })
     }
-  }, [primary, putImage, patchLayer, runOnPrimary])
+  }, [primary, putImage, patchLayer, runOnPrimary, pushHistory])
 
   // No silent rejections: a wrong file type or an oversized image throws a
   // readable message rather than returning quietly.
   const handleFile = useCallback(async (file) => {
     if (!primary) return
     try {
+      // After validation, before the first visible write: a rejected file
+      // changes nothing, so it must not leave an undo entry behind.
       const { base64, mediaType } = await fileToBase64(file)
+      pushHistory()
       const imageId = putImage(`data:${mediaType};base64,${base64}`)
       patchLayer(primary.id, { imageId })
       await runOnPrimary({ imageBase64: base64, mediaType, description: text })
     } catch (err) {
       patchLayer(primary.id, { status: 'error', error: err.message })
     }
-  }, [primary, text, putImage, patchLayer, runOnPrimary])
+  }, [primary, text, putImage, patchLayer, runOnPrimary, pushHistory])
+
+  // No push here. The text path's first visible write is the first keystroke,
+  // not the submit, and setDescription already opened the entry there.
+  const submitText = useCallback(() => {
+    if (!text.trim()) return
+    runOnPrimary({ description: text })
+  }, [text, runOnPrimary])
+
+  const travel = useCallback((fn, label) => {
+    const { moved, aborted } = fn()
+    if (!moved) return
+    setTimeNote(aborted
+      ? `${label} CANCELLED ${aborted} ANALYS${aborted === 1 ? 'IS' : 'ES'} IN FLIGHT`
+      : null)
+  }, [])
+
+  useEffect(() => {
+    if (!timeNote) return
+    const t = setTimeout(() => setTimeNote(null), 4000)
+    return () => clearTimeout(t)
+  }, [timeNote])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
+      if (e.target instanceof HTMLInputElement) return
+      e.preventDefault()
+      if (e.shiftKey) travel(redo, 'REDO')
+      else travel(undo, 'UNDO')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo, travel])
 
   const handleDrop = useCallback(async (e) => {
     e.preventDefault(); setDragOver(false)
@@ -216,6 +278,14 @@ export default function Panel() {
         <LayerList />
 
         <section className="panel-section">
+          <div className="history-row">
+            <button className="btn" disabled={!canUndo} onClick={() => travel(undo, 'UNDO')}>UNDO</button>
+            <button className="btn" disabled={!canRedo} onClick={() => travel(redo, 'REDO')}>REDO</button>
+          </div>
+          {timeNote && <div className="status muted" style={{ marginTop: 6 }}>· {timeNote}</div>}
+        </section>
+
+        <section className="panel-section">
           <div className="section-label">SWATCHES</div>
           <div className="preset-row">
             {PRESETS.map((p) => (
@@ -268,9 +338,9 @@ export default function Panel() {
           <div className="text-input-row">
             <input type="text" className="text-input" placeholder="DESCRIBE MATERIAL..."
               value={text}
-              onChange={(e) => { setText(e.target.value); if (primary) patchLayer(primary.id, { description: e.target.value }) }}
-              onKeyDown={(e) => e.key === 'Enter' && text.trim() && runOnPrimary({ description: text })} />
-            <button className="btn" onClick={() => runOnPrimary({ description: text })}
+              onChange={(e) => { setText(e.target.value); if (primary) setDescription(primary.id, e.target.value) }}
+              onKeyDown={(e) => e.key === 'Enter' && submitText()} />
+            <button className="btn" onClick={submitText}
               disabled={busy || !text.trim()}>→</button>
           </div>
 
@@ -332,6 +402,7 @@ export default function Panel() {
             <div>SHIFT / CMD → MULTI-SELECT</div>
             <div>DRAG → ORBIT</div>
             <div>SLIDERS → LIVE GLSL UNIFORMS</div>
+            <div>CMD Z / SHIFT → UNDO, REDO</div>
           </div>
         </section>
       </div>

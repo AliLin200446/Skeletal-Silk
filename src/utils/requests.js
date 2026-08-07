@@ -113,6 +113,11 @@ export function cancelLayer(layerId) {
   return cancelled
 }
 
+// Returns how many were actually aborted, so the caller can say so. Undo uses
+// this: silently killing requests the user is paying for is worse than telling
+// them, and the count is the only honest way to phrase it.
 export function cancelAll() {
-  for (const id of [...inflight.keys()]) cancelRequest(id)
+  let n = 0
+  for (const id of [...inflight.keys()]) if (cancelRequest(id)) n++
+  return n
 }
