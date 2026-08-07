@@ -132,3 +132,22 @@ replaced. Three copies looked merely out of date; after `git fetch` all three
 turned out to be genuinely divergent, one of them sharing **no common
 ancestor** with its remote at all. Fetch before believing a divergence
 reading.
+
+---
+
+## Open
+
+Multi-layer refactor: Steps 1-3 done and pushed on `feat/multi-layer`.
+Steps 4-7 blocked on hand verification of races A-D by the author.
+Run `vercel dev`, follow the four steps in the Step 3 report.
+Do not start Step 4 until that verification is confirmed.
+
+Step 5 follow-up: batch edit may make the third landing check
+reachable. When it does, verify with fault injection that it
+actually fires. Do not assume a written check works.
+
+STYLE.md reconciliation with the portfolio STYLE: not started.
+First decision is which file is canonical.
+
+cac-internal-docs still has no remote. Local mirror only, at
+`~/Vault/git-mirrors/`. A private remote is the actual answer.
