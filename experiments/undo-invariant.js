@@ -24,7 +24,13 @@
 //
 // WHAT IT COVERS
 //   All three paths that write layer state before an analysis: swatch click,
-//   file drop, and text submit. Plus add, uniform change and delete.
+//   file drop, and text submit. Plus add, uniform change, delete, and a
+//   multi-select batch edit.
+//
+//   The batch case is the one most likely to regress: a uniform change across
+//   three selected layers must be ONE history entry, not three. If it ever
+//   becomes one entry per layer, undo will appear to work while walking back
+//   through layers one at a time, and only this harness will say so.
 //
 // TODO (Step 6): reorder is not covered, because the drag control does not
 //   exist yet. Add a reorder step to the sequence below when it does. A
@@ -88,6 +94,9 @@ window.__undoInvariant = async function undoInvariant() {
     el.dispatchEvent(new Event('input', { bubbles: true }))
   }
 
+  const click = (el, opts = {}) =>
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...opts }))
+
   const setText = (el, v) => {
     const set = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
     set.call(el, v)
@@ -127,7 +136,16 @@ window.__undoInvariant = async function undoInvariant() {
     await settle()
   })
 
+  // Batch edit across a multi-selection. One action, one entry, all layers.
+  await step('multi-select 1-3 and set flow 0.66 on all', async () => {
+    click(rows()[0]); await ticks(8)
+    click(rows()[2], { shiftKey: true }); await ticks(8)
+    setRange(document.querySelectorAll('input[type=range]')[1], 0.66)
+  })
+  await waitMs(600)   // let the merge window close
+
   await step('delete layer 3', async () => {
+    click(rows()[2]); await ticks(8)
     rows()[2].querySelector('.layer-remove').click()
   })
 

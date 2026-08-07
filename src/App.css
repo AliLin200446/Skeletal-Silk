@@ -101,6 +101,8 @@ button.layer-status:hover{color:var(--ink)}
 .layer-add{margin-bottom:0}
 .history-row{display:flex;gap:6px}
 .history-row .btn{flex:1;margin-bottom:0}
+/* A disagreement across a multi-selection reads as a word, not a number. */
+.slider-val.is-mixed,.color-hex.is-mixed{color:var(--ink-dim);letter-spacing:0.14em}
 
 
 /* Swatches */

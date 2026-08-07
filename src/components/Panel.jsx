@@ -97,9 +97,16 @@ export default function Panel() {
       // What would make it reachable: a layer disappearing without its request
       // being aborted, or an abort that does not carry AnalysisCancelledError.
       if (!layer) return null
-      // NEVER FIRED as of 2026-08-07. Unreachable while a layer can hold only
-      // one live request: the per-layer guard in beginRequest prevents a second
-      // one from ever claiming the same layer. Step 5's batch edit may open it.
+      // NEVER FIRED as of 2026-08-07. Step 5's batch edit was expected to open
+      // this and does not. Checked after building it: there is exactly one
+      // beginRequest call site, here, and it targets primary.id, the first
+      // selected layer. Multi-select widens which layers a UNIFORM edit writes
+      // to; it does not widen which layers get analysed, and setSelectedParam
+      // touches params only, never requestId. So a layer still cannot hold two
+      // live requests and this can still never disagree.
+      //
+      // What would make it reachable: analysing a whole selection at once, or
+      // any second beginRequest call site that can target a busy layer.
       if (layer.requestId !== requestId) return null
       return layer
     }
