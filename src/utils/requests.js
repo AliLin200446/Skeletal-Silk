@@ -11,7 +11,7 @@
 // lab.js, the store imports this file. emit() is a no-op unless the page was
 // opened with ?lab=1, so the non-lab path is a function call that returns
 // immediately and touches nothing.
-import { emit } from './lab'
+import { emit, isInjected } from './lab'
 
 export class RateLimitedError extends Error {
   constructor(msg) {
@@ -126,9 +126,18 @@ export function endRequest(requestId) {
 export function cancelRequest(requestId) {
   const entry = inflight.get(requestId)
   if (!entry) return false
+  // The delete stays first, unconditionally and in both modes. It is the whole
+  // reason check 1 can stop a late response: by the time one resolves, isLive
+  // is already false. Moving it below the abort would change the mechanism
+  // being demonstrated rather than demonstrate it.
   inflight.delete(requestId)
-  entry.controller.abort(new AnalysisCancelledError())
-  emit('abort', { layerId: entry.layerId, requestId })
+  // Injection, reachable only under ?lab=1 with the switch on. Suppressing the
+  // abort leaves the request in the air, so the server's answer really does
+  // arrive a few seconds later and check 1 really does have something to
+  // refuse. With the switch off this line is the abort that was always here.
+  const suppressed = isInjected('suppressAbort')
+  if (!suppressed) entry.controller.abort(new AnalysisCancelledError())
+  emit('abort', { layerId: entry.layerId, requestId, suppressed: suppressed || undefined })
   return true
 }
 

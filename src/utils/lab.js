@@ -37,6 +37,41 @@ const submittedAt = new Map()
 
 let seq = 0
 
+// Injections are not guards. A guard is product behaviour being demonstrated;
+// an injection is this file deliberately breaking that behaviour so a guard can
+// be seen doing its job. They are kept apart here and apart on screen, because
+// a screenshot of an injected run that looked like ordinary behaviour would be
+// a lie about what the product does.
+//
+// Replaced rather than mutated, so a snapshot reference is stable between
+// changes and useSyncExternalStore does not loop.
+let injections = { suppressAbort: false }
+
+export function getInjections() {
+  return injections
+}
+
+// Two conditions, never one. The page must have been opened with ?lab=1 AND
+// the switch must be on. A build without the flag cannot reach an injected
+// path even if something set the field.
+export function isInjected(name) {
+  return LAB && injections[name] === true
+}
+
+export function anyInjected() {
+  return LAB && Object.values(injections).some(Boolean)
+}
+
+export function setInjection(name, on) {
+  if (!LAB) return
+  injections = { ...injections, [name]: !!on }
+  // A marker in the stream itself, not only in the panel. Rows scroll and
+  // screenshots get cropped; without this an injected run read out of context
+  // would look like the product's real behaviour.
+  emit('injection', { name, on: !!on })
+  for (const fn of listeners) fn()
+}
+
 export function emit(type, detail = {}) {
   if (!LAB) return
   const at = now()
@@ -55,6 +90,10 @@ export function emit(type, detail = {}) {
     type,
     at,
     sinceSubmit: t0 === undefined ? null : at - t0,
+    // Every row emitted while an injection is live carries the fact. The
+    // marker row above says when it started; this says it about each row, so a
+    // single cropped line still cannot be mistaken for product behaviour.
+    injected: type === 'injection' ? undefined : anyInjected() || undefined,
     ...detail,
   }
 

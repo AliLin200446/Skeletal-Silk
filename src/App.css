@@ -260,6 +260,19 @@ button.layer-status:hover{color:var(--ink)}
   letter-spacing:0.16em;color:var(--ink);margin-bottom:7px}
 .lab-head .link-btn{margin-left:auto}
 .lab-count{color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.lab.is-injecting{border-color:var(--ink)}
+.lab-switches{display:flex;gap:10px;margin-bottom:8px}
+.lab-group{flex:1;min-width:0}
+.lab-group-injection{border-left:2px solid var(--ink);padding-left:7px}
+.lab-group-head{font-size:9px;letter-spacing:0.14em;color:var(--ink);margin-bottom:4px}
+.lab-group-note{font-size:9px;line-height:1.5;color:var(--ink-dim);margin-top:4px}
+.lab-switch{display:flex;align-items:center;gap:5px;font-size:9px;
+  letter-spacing:0.08em;color:var(--ink);cursor:pointer}
+.lab-switch input{accent-color:var(--ink);margin:0}
+.lab-banner{font-size:9px;letter-spacing:0.14em;color:var(--paper);
+  background:var(--ink);padding:4px 6px;margin-bottom:7px}
+.lab-row.is-injected .lab-t::after{content:' *';color:var(--ink)}
+.lab-row-injection .lab-type{color:var(--ink)}
 .lab-stream{overflow-y:auto;flex:1;min-height:0}
 .lab-empty{font-size:9px;line-height:1.5;color:var(--ink-dim)}
 .lab-row{display:grid;grid-template-columns:52px 58px 62px 62px 52px;gap:6px;
