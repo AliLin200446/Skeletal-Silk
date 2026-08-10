@@ -34,19 +34,22 @@ the same as keeping both. **The evidence is not the thing that gets edited.**
 ## Say when a guard is currently unreachable
 
 The response landing check asks three questions: is the request still live, does
-the layer still exist, does the layer still own this request id. The first two
-fire under real conditions. The third **cannot fire today** — the per-layer
-guard means a layer never holds two live requests at once.
+the layer still exist, does the layer still own this request id. When this was
+written the third **could not fire** — the per-layer guard means a layer never
+holds two live requests at once.
 
-It was kept, because Step 5's batch edit reopens exactly that door. But it was
-reported as unreachable rather than allowed to pass as a working defence. A
-guard that has never run is an untested guard, and describing it as if it were
-load-bearing is how a codebase acquires protections nobody has ever seen work.
+It was kept, but reported as unreachable rather than allowed to pass as a
+working defence. A guard that has never run is an untested guard, and
+describing it as if it were load-bearing is how a codebase acquires protections
+nobody has ever seen work.
 
-**Follow-up, do at Step 5:** once batch edit exists, check whether one layer can
-carry two live requests. If it can, the third check becomes reachable, and it
-must be proven to fire by injection. Being written down is not evidence that it
-works.
+**Resolved 2026-08-10, and not the way the follow-up expected.** Step 5's batch
+edit was the suspected opening and it was not: there is still exactly one
+`beginRequest` call site. What reached check 3 was suppressing `cancelAll` on
+undo, which leaves a request live across a time jump while the restored layer
+carries no request id. It fires, and it works. See **Two injections, two
+different guards** below. The general point survives the specific prediction
+being wrong: the check was proven by making it fire, not by re-reading it.
 
 ## A stub that makes races reproducible does not get committed
 
@@ -338,7 +341,7 @@ protections nobody has seen work.
 |---|---|---|---|
 | landing check 1, request still live | **fires in normal use** | first recorded as injection-only, corrected 2026-08-10: it is the live path for every ordinary cancel. Also verified by injection, where a real 200 arrived 2.4s after a cancel and specular held at the cached 0.12 against an arriving 0.18 | n/a |
 | landing check 2, layer still exists | never fired | **reason corrected 2026-08-10.** Every removal path aborts first, which deletes the entry from `inflight`, so check 1 is already false by the time the response resolves and short-circuits this one. The earlier reason given here, that the catch returned on `AnalysisCancelledError` before `mayLand` ran, is wrong: that branch is itself unreachable | a layer disappearing without its request being aborted, so that check 1 still passes and this one is reached |
-| landing check 3, layer still owns this request | **fired 2026-08-10, under injection only** | never reachable in ordinary use: exactly one `beginRequest` call site, targeting `primary.id`, and multi-select widens which layers a uniform edit writes to, not which get analysed. Reached by suppressing `cancelAll` on undo, which leaves a request live across a time jump while the restored layer carries `requestId: null` | in ordinary use, still nothing. Analysing a whole selection at once, or a second `beginRequest` call site that can target a busy layer |
+| landing check 3, layer still owns this request | **fired 2026-08-10** | **Scenario:** undo crosses an in-flight request with `cancelAll` suppressed. The request is still in `inflight`, so check 1 passes; the restored layer carries `requestId: null`, so `null !== 'req_0'` and check 3 refuses it. **Why it can refuse at all:** `snapshot()` stores `layers` alone and `normaliseLayer` nulls `requestId`, and `inflight` is never store state. Reverse either decision and the old id comes back on the restored layer, check 3 matches, and every guard passes | in ordinary use, still nothing: analysing a whole selection at once, or a second `beginRequest` call site that can target a busy layer |
 | `isLayerBusy`, this layer is already analysing | never fired | unreachable from the UI: the preset buttons carry `disabled={busy}`, so a second click never reaches `beginRequest` | the text-input or drop path starting an analysis on a busy layer |
 
 Step 5 was expected to open check 3 and did not. Step 4's undo was expected to
@@ -374,11 +377,22 @@ actions as of the lab work; the cancel step was added when a pass under the
 suppress-abort injection turned out to mean only that no step reached
 `cancelRequest`.
 
-Not covered: undo during an in-flight request, which is the path the
-suppress-cancelAll injection changes. The suite passes with that switch on and
-that means nothing yet, for the same reason the cancel gap meant nothing: by
-the time the suite reaches undo, every request has settled. A step that presses
-undo mid-flight is needed before a pass there is evidence.
+**Known gap: undo during an in-flight request.** This is the path the
+suppress-cancelAll injection changes, and the suite does not walk it. It passes
+with that switch on, and that pass means nothing, for the same reason the
+cancel gap meant nothing before Phase 3 closed it: by the time the suite
+reaches its undo sequence every request has already settled.
+
+The step that would close it: fire a swatch, wait only until the spinner
+appears rather than until it clears, press undo while the request is still in
+the air, then wait out the server latency so any late response has landed
+before the assertions run. One `step()` call, on a layer with no cooldown
+pending, mirroring the cancel step added in Phase 3.
+
+Deliberately left open. The behaviour is covered by hand instead, recorded in
+**Two injections, two different guards** above with the stream it produced. A
+gap that is written down with the step that would close it is a different thing
+from a gap nobody has noticed.
 
 Not covered: the remaining race behaviours (they need a slow request, and the stub
 that provides one is built, measured and reverted rather than committed);

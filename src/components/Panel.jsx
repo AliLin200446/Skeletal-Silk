@@ -132,7 +132,7 @@ export default function Panel() {
       //
       // What would make it reachable: analysing a whole selection at once, or
       // any second beginRequest call site that can target a busy layer.
-      if (layer.requestId !== requestId) { refusedBy = 'check 3 layer owns a newer request'; return null }
+      if (layer.requestId !== requestId) { refusedBy = 'check 3 layer no longer owns this request'; return null }
       return layer
     }
 
