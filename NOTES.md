@@ -188,6 +188,46 @@ both conditions are provably the ones that were there before. Flagged at the
 time rather than quietly resolved, because picking either constraint silently
 would have looked like compliance with both.
 
+## Two injections, two different guards, and the one that had never fired
+
+The lab has two injection switches and they do not prove the same thing.
+
+**Suppress abort on cancel** leaves a request flying after the user cancels it.
+The response arrives, the request is no longer in the inflight map because
+`cancelRequest` deleted it, and **check 1** refuses it. This is the guard that
+was already firing on every ordinary cancel.
+
+**Suppress cancelAll on undo** leaves a request flying across a time jump. It
+is a harder case, because undo restores state out of history and the obvious
+worry is that the request id comes back with it: a revived id would match, the
+guard would pass, and a response from before the jump would land on a document
+that has moved.
+
+It does not come back, and the reason is a decision made in Step 4. Snapshots
+normalise `requestId` to `null`, and the inflight map lives outside the store
+entirely, so history has no idea any request exists. After the jump the layer
+carries no id at all.
+
+That flips which guard catches it. The request is still live, so check 1
+passes. The restored layer's `requestId` is `null`, so `null !== 'req_0'` and
+**check 3** refuses it:
+
+    13.711 * INJECTION  suppress cancelAll on undo ON
+    13.857 * SUBMIT     layer_0  req_0  +0.000s
+    18.897 * DISCARDED  layer_0  req_0  +5.039s  check 3
+                        arrived 0.78 0.22 0.52, discarded. State holds 0.48 0.38 0.12.
+
+**This is the first time check 3 has ever fired.** It was recorded as
+unreachable through Steps 5 and 6, correctly, because nothing in ordinary use
+can give a layer a request id it does not own. Suppressing the undo abort does
+exactly that, and the check that had never run turns out to work.
+
+Note what the demonstration actually rests on. Not the guard: the guard is
+three lines. It rests on `requestId` being normalised out of the snapshot, a
+decision made two steps earlier for a different reason, and on the inflight map
+never having been store state. Had either gone the other way, check 3 would
+have matched a revived id and let the response through.
+
 ## A suite that does not walk a path says nothing about that path
 
 Distinguishability asks whether a failure would have looked different.
@@ -298,7 +338,7 @@ protections nobody has seen work.
 |---|---|---|---|
 | landing check 1, request still live | **fires in normal use** | first recorded as injection-only, corrected 2026-08-10: it is the live path for every ordinary cancel. Also verified by injection, where a real 200 arrived 2.4s after a cancel and specular held at the cached 0.12 against an arriving 0.18 | n/a |
 | landing check 2, layer still exists | never fired | **reason corrected 2026-08-10.** Every removal path aborts first, which deletes the entry from `inflight`, so check 1 is already false by the time the response resolves and short-circuits this one. The earlier reason given here, that the catch returned on `AnalysisCancelledError` before `mayLand` ran, is wrong: that branch is itself unreachable | a layer disappearing without its request being aborted, so that check 1 still passes and this one is reached |
-| landing check 3, layer still owns this request | never fired | exactly one `beginRequest` call site, targeting `primary.id`. Multi-select widens which layers a uniform edit writes to, not which get analysed | analysing a whole selection at once, or a second `beginRequest` call site that can target a busy layer |
+| landing check 3, layer still owns this request | **fired 2026-08-10, under injection only** | never reachable in ordinary use: exactly one `beginRequest` call site, targeting `primary.id`, and multi-select widens which layers a uniform edit writes to, not which get analysed. Reached by suppressing `cancelAll` on undo, which leaves a request live across a time jump while the restored layer carries `requestId: null` | in ordinary use, still nothing. Analysing a whole selection at once, or a second `beginRequest` call site that can target a busy layer |
 | `isLayerBusy`, this layer is already analysing | never fired | unreachable from the UI: the preset buttons carry `disabled={busy}`, so a second click never reaches `beginRequest` | the text-input or drop path starting an analysis on a busy layer |
 
 Step 5 was expected to open check 3 and did not. Step 4's undo was expected to
@@ -333,6 +373,12 @@ batch edit, a hand edit made mid-flight, cancel, reorder, delete. Twelve
 actions as of the lab work; the cancel step was added when a pass under the
 suppress-abort injection turned out to mean only that no step reached
 `cancelRequest`.
+
+Not covered: undo during an in-flight request, which is the path the
+suppress-cancelAll injection changes. The suite passes with that switch on and
+that means nothing yet, for the same reason the cancel gap meant nothing: by
+the time the suite reaches undo, every request has settled. A step that presses
+undo mid-flight is needed before a pass there is evidence.
 
 Not covered: the remaining race behaviours (they need a slow request, and the stub
 that provides one is built, measured and reverted rather than committed);

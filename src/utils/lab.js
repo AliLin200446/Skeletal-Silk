@@ -45,7 +45,7 @@ let seq = 0
 //
 // Replaced rather than mutated, so a snapshot reference is stable between
 // changes and useSyncExternalStore does not loop.
-let injections = { suppressAbort: false }
+let injections = { suppressAbort: false, suppressUndoAbort: false }
 
 export function getInjections() {
   return injections

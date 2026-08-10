@@ -19,6 +19,14 @@ const TYPE_LABEL = {
 
 // A request id is req_<seq>_<clock>. Only the sequence part is worth reading
 // at a glance; the clock suffix is there to make ids unique, not legible.
+// Named, not hardcoded. The marker row said "suppress abort" for every
+// injection while there was only one; the second switch made that a lie on the
+// one row whose whole job is to stop a screenshot being misread.
+const INJECTION_LABEL = {
+  suppressAbort: 'suppress abort on cancel',
+  suppressUndoAbort: 'suppress cancelAll on undo',
+}
+
 const shortId = (id) => (id ? id.split('_').slice(0, 2).join('_') : '')
 
 const secs = (ms) => (ms / 1000).toFixed(3)
@@ -48,13 +56,29 @@ export default function LabPanel() {
               checked={injections.suppressAbort}
               onChange={(e) => setInjection('suppressAbort', e.target.checked)}
             />
-            <span>Suppress abort</span>
+            <span>Suppress abort on cancel</span>
           </label>
           <div className="lab-group-note">
             Off by default. On, a cancel still removes the request and still
             reports ABORT, but the fetch is left running, so the server's answer
             really arrives a few seconds later and landing check 1 has a real
             value to refuse.
+          </div>
+
+          <label className="lab-switch">
+            <input
+              type="checkbox"
+              checked={injections.suppressUndoAbort}
+              onChange={(e) => setInjection('suppressUndoAbort', e.target.checked)}
+            />
+            <span>Suppress cancelAll on undo</span>
+          </label>
+          <div className="lab-group-note">
+            Off by default. On, undo and redo leave requests flying across the
+            time jump. A different guard catches the result: the request is
+            still live, so check 1 passes, but the restored layer carries no
+            request id, so check 3 refuses it. That is the check that had never
+            fired in ordinary use.
           </div>
         </div>
 
@@ -91,7 +115,8 @@ export default function LabPanel() {
             </span>
             {e.type === 'injection' && (
               <span className="lab-reason">
-                suppress abort {e.on ? 'ON, events below are injected' : 'OFF, back to product behaviour'}
+                {INJECTION_LABEL[e.name] ?? e.name}{' '}
+                {e.on ? 'ON, events below are injected' : 'OFF, back to product behaviour'}
               </span>
             )}
             {e.suppressed && <span className="lab-reason">abort suppressed by injection, request left in flight</span>}

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import SWATCH_PARAMS from '../data/swatch-params.json'
 import { cancelAll, markTouched } from '../utils/requests'
+// Injection gate only. lab.js imports nothing, so this adds no cycle.
+import { isInjected } from '../utils/lab'
 
 export const MAX_LAYERS = 6
 
@@ -182,7 +184,11 @@ export const useStore = create((set, get) => ({
     if (!s.past.length) return { moved: false, aborted: 0 }
     // Requests are aborted, never carried across a time jump. The alternative
     // is a response landing on a document that has moved out from under it.
-    const aborted = cancelAll()
+    //
+    // Injection only, same two-condition gate as every other one: with it on
+    // the requests are left flying, so a late response has to be caught on the
+    // far side of the jump instead of never arriving. cancelAll is untouched.
+    const aborted = isInjected('suppressUndoAbort') ? 0 : cancelAll()
     // Close any open merge window so the next gesture opens a fresh entry
     // rather than merging into the one just undone.
     mergeUntil = 0; mergeKey = null
@@ -199,7 +205,7 @@ export const useStore = create((set, get) => ({
   redo: () => {
     const s = get()
     if (!s.future.length) return { moved: false, aborted: 0 }
-    const aborted = cancelAll()
+    const aborted = isInjected('suppressUndoAbort') ? 0 : cancelAll()
     mergeUntil = 0; mergeKey = null
     const next = restore(s.future[0])
     set({
