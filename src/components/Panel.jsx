@@ -86,10 +86,12 @@ export default function Panel() {
     // Without these, a slow response from a deleted or re-analysed layer lands
     // on whatever is sitting in that slot now.
     //
-    // Only check 1 has ever fired. Verified 2026-08-07 by fault injection:
-    // suppressing the abort so a real 200 came back 2.4s after a cancel, the
-    // response was refused and specular stayed at the cached 0.12 where the
-    // arriving body carried 0.18. Checks 2 and 3 are untested code, see below.
+    // Only check 1 has ever fired, and it fires far more often than first
+    // recorded. It was written up 2026-08-07 as verified by fault injection,
+    // where suppressing the abort let a real 200 arrive 2.4s after a cancel and
+    // specular held at the cached 0.12 against an arriving 0.18. Corrected
+    // 2026-08-10: it is also the live path for every ordinary cancel. See the
+    // catch below for why. Checks 2 and 3 are untested code, see below.
     //
     // refusedBy is the one change this pass makes to existing code. Which
     // guard refused a response is half the information, and without it the
@@ -106,16 +108,19 @@ export default function Panel() {
       refusedBy = null
       if (!isLive(requestId)) { refusedBy = 'check 1 (isLive) request not live'; return null }
       const layer = useStore.getState().layers.find((l) => l.id === id)
-      // NEVER FIRED as of 2026-08-07, and now with a reason rather than a
-      // guess. Every path that removes a layer aborts its request first:
-      // removeLayer calls cancelLayer, and undo calls cancelAll. Both abort
-      // with AnalysisCancelledError, and the catch below returns on that error
-      // before mayLand is consulted, so the abort path and the cancel path
-      // converge on the same early return. Step 4's undo was expected to reach
-      // this check and does not, for exactly that reason.
+      // NEVER FIRED as of 2026-08-10, with the reason corrected. Every path
+      // that removes a layer aborts its request first: removeLayer calls
+      // cancelLayer, undo calls cancelAll, and both delete the entry from
+      // inflight before aborting. So check 1 above is already false by the time
+      // the response resolves, and it short-circuits this one.
+      //
+      // The reason given here before was that the catch below returned on
+      // AnalysisCancelledError first. That was wrong: that branch never runs,
+      // because fetch rejects with the abort reason itself and the AbortError
+      // name test in analyseFabric is therefore false.
       //
       // What would make it reachable: a layer disappearing without its request
-      // being aborted, or an abort that does not carry AnalysisCancelledError.
+      // being aborted, so check 1 still passes and this one is consulted.
       if (!layer) { refusedBy = 'check 2 layer no longer exists'; return null }
       // NEVER FIRED as of 2026-08-07. Step 5's batch edit was expected to open
       // this and does not. Checked after building it: there is exactly one
