@@ -1,4 +1,6 @@
 import Scene from './components/Scene'
+import LabPanel from './components/LabPanel'
+import { LAB } from './utils/lab'
 import Panel from './components/Panel'
 import LeftPanel from './components/LeftPanel'
 import ExportShader from './components/ExportShader'
@@ -29,6 +31,9 @@ export default function App() {
       <LeftPanel />
       <div className="panel-pane"><Panel /></div>
       <MobileGate />
+      {/* Off unless the page was opened with ?lab=1. With the flag absent this
+          renders nothing at all, so the shipped tree is byte-identical. */}
+      {LAB && <LabPanel />}
     </div>
   )
 }

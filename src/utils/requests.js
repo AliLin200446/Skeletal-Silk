@@ -6,6 +6,12 @@
 // slider drag should not resurrect a request that already landed. The store
 // holds one string per layer, `requestId`, which is the only thing the two
 // halves share.
+//
+// The lab import runs one way only: lab.js imports nothing, this file imports
+// lab.js, the store imports this file. emit() is a no-op unless the page was
+// opened with ?lab=1, so the non-lab path is a function call that returns
+// immediately and touches nothing.
+import { emit } from './lab'
 
 export class RateLimitedError extends Error {
   constructor(msg) {
@@ -66,13 +72,16 @@ export function beginRequest(layerId) {
   // does not reach this function at all. Kept as defence in depth, because the
   // text-input and drop paths could change. Treat it as untested code.
   if (isLayerBusy(layerId)) {
+    emit('blocked', { layerId, reason: 'layer already analysing' })
     throw new RateLimitedError('THIS LAYER IS ALREADY ANALYSING')
   }
   if (inflight.size >= MAX_CONCURRENT) {
+    emit('blocked', { layerId, reason: `concurrency cap, ${inflight.size} of ${MAX_CONCURRENT} in flight` })
     throw new RateLimitedError(`${MAX_CONCURRENT} ANALYSES AT ONCE IS THE LIMIT — WAIT FOR ONE TO LAND`)
   }
   const since = Date.now() - (lastRequestAt.get(layerId) ?? 0)
   if (since < COOLDOWN_MS) {
+    emit('blocked', { layerId, reason: `cooldown, ${Math.ceil((COOLDOWN_MS - since) / 1000)}s remaining` })
     throw new RateLimitedError(
       `EASY — WAIT ${Math.ceil((COOLDOWN_MS - since) / 1000)}S BEFORE RE-ANALYSING THIS LAYER`,
     )
@@ -85,6 +94,7 @@ export function beginRequest(layerId) {
   // flight when it was made.
   inflight.set(requestId, { layerId, controller, touched: new Set() })
   lastRequestAt.set(layerId, Date.now())
+  emit('submit', { layerId, requestId })
   return { requestId, controller }
 }
 
@@ -118,6 +128,7 @@ export function cancelRequest(requestId) {
   if (!entry) return false
   inflight.delete(requestId)
   entry.controller.abort(new AnalysisCancelledError())
+  emit('abort', { layerId: entry.layerId, requestId })
   return true
 }
 
