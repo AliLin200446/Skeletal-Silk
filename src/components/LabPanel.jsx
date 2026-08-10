@@ -12,6 +12,8 @@ const TYPE_LABEL = {
   abort: 'ABORT',
   refused: 'REFUSED',
   land: 'LAND',
+  discarded: 'DISCARDED',
+  dropped: 'DROPPED',
 }
 
 // A request id is req_<seq>_<clock>. Only the sequence part is worth reading
@@ -47,19 +49,29 @@ export default function LabPanel() {
             <span className="lab-since">
               {e.sinceSubmit === null ? '' : `+${secs(e.sinceSubmit)}s`}
             </span>
+            {e.check && <span className="lab-reason">{e.check}</span>}
             {e.reason && <span className="lab-reason">{e.reason}</span>}
+            {e.wrote && <span className="lab-reason">wrote {e.wrote}{e.kept?.length ? `, kept ${e.kept.join(' and ')} by hand` : ''}</span>}
+            {e.type === 'discarded' && (
+              <span className="lab-detail">
+                {e.arrived
+                  ? `arrived ${e.arrived}, discarded. State holds ${e.held}.`
+                  : `response errored and was discarded. State holds ${e.held}.`}
+                {e.tokensCounted
+                  ? ' Tokens were already counted: this was paid for, then thrown away.'
+                  : ' No tokens counted: nothing came back to count.'}
+              </span>
+            )}
           </div>
         ))}
       </div>
 
-      {/* LAND is missing on purpose rather than by omission: it has no single
-          existing choke point to hang off, so it needs instrumentation that
-          this pass deliberately does not add. */}
       <div className="lab-note">
-        Clock is performance.now(), seconds since page load. The elapsed column
-        is measured from that request's own submit. LAND is not in this stream
-        yet: unlike the other three it has no single place in the code to read
-        it from, so it needs new instrumentation.
+        Clock is performance.now(), seconds since page load. Elapsed is measured
+        from that request's own submit. REFUSED means nothing was sent and
+        nothing was spent. DISCARDED means a response came back and a guard
+        refused it, which is a different kind of event and, on the success
+        path, one that was paid for first.
       </div>
     </section>
   )

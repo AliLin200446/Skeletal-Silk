@@ -266,6 +266,9 @@ button.layer-status:hover{color:var(--ink)}
   font-size:9px;line-height:1.7;color:var(--ink-mid);
   font-variant-numeric:tabular-nums;letter-spacing:0.04em}
 .lab-row .lab-reason{grid-column:2 / -1;color:var(--ink-dim)}
+.lab-row .lab-detail{grid-column:2 / -1;color:var(--ink);line-height:1.55}
+.lab-row-discarded{border-left:1px solid var(--ink);padding-left:5px;margin:4px 0 4px -6px}
+.lab-row-discarded .lab-type{color:var(--ink)}
 .lab-t{color:var(--ink-dim)}
 .lab-type{color:var(--ink)}
 .lab-row-refused .lab-type{color:var(--ink-dim)}

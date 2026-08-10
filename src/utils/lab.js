@@ -44,10 +44,11 @@ export function emit(type, detail = {}) {
 
   if (type === 'submit' && requestId) submittedAt.set(requestId, at)
   const t0 = requestId ? submittedAt.get(requestId) : undefined
-  // Cleared on the events that end a request, so the map cannot outlive the
-  // buffer. 'land' is not emitted yet; it is listed so the sweep is already
-  // correct when Phase 2 adds it.
-  if ((type === 'abort' || type === 'land') && requestId) submittedAt.delete(requestId)
+  // Cleared on every event that ends a request, so the map cannot outlive the
+  // buffer. All four terminal outcomes are listed: a request leaves this map
+  // exactly once, whichever way it finished.
+  const TERMINAL = ['abort', 'land', 'discarded', 'dropped']
+  if (TERMINAL.includes(type) && requestId) submittedAt.delete(requestId)
 
   const event = {
     seq: seq++,

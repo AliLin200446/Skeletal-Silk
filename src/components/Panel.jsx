@@ -11,6 +11,7 @@ import {
 import { PRESETS } from '../data/presets'
 import TESTED_ON from '../data/tested-on.json'
 import { RATES, estimateUsd } from '../data/rates'
+import { emit } from '../utils/lab'
 import LayerList from './LayerList'
 import LayerInspector from './LayerInspector'
 
@@ -89,8 +90,21 @@ export default function Panel() {
     // suppressing the abort so a real 200 came back 2.4s after a cancel, the
     // response was refused and specular stayed at the cached 0.12 where the
     // arriving body carried 0.18. Checks 2 and 3 are untested code, see below.
+    //
+    // refusedBy is the one change this pass makes to existing code. Which
+    // guard refused a response is half the information, and without it the
+    // stream can only say "something stopped it".
+    //
+    // It is a side channel rather than a changed return value on purpose. Both
+    // call sites test falsiness (`if (!layer)` and `if (!mayLand())`), so
+    // returning a truthy reason object would have inverted both conditions.
+    // The contract is untouched: layer on success, null on failure. Judgement
+    // logic and order are untouched. Only the returned information grew, and
+    // it grew beside the return rather than inside it.
+    let refusedBy = null
     const mayLand = () => {
-      if (!isLive(requestId)) return null
+      refusedBy = null
+      if (!isLive(requestId)) { refusedBy = 'check 1 (isLive) request not live'; return null }
       const layer = useStore.getState().layers.find((l) => l.id === id)
       // NEVER FIRED as of 2026-08-07, and now with a reason rather than a
       // guess. Every path that removes a layer aborts its request first:
@@ -102,7 +116,7 @@ export default function Panel() {
       //
       // What would make it reachable: a layer disappearing without its request
       // being aborted, or an abort that does not carry AnalysisCancelledError.
-      if (!layer) return null
+      if (!layer) { refusedBy = 'check 2 layer no longer exists'; return null }
       // NEVER FIRED as of 2026-08-07. Step 5's batch edit was expected to open
       // this and does not. Checked after building it: there is exactly one
       // beginRequest call site, here, and it targets primary.id, the first
@@ -113,9 +127,17 @@ export default function Panel() {
       //
       // What would make it reachable: analysing a whole selection at once, or
       // any second beginRequest call site that can target a busy layer.
-      if (layer.requestId !== requestId) return null
+      if (layer.requestId !== requestId) { refusedBy = 'check 3 layer owns a newer request'; return null }
       return layer
     }
+
+    // Reads the three scalars as they stand right now. Colour is left out: the
+    // row has to be legible at a glance and a hex adds width without adding
+    // to the point being made.
+    const triple = (p) => (p
+      ? `${p.rigidity.toFixed(2)} ${p.flow.toFixed(2)} ${p.specular.toFixed(2)}`
+      : null)
+    const heldNow = () => triple(useStore.getState().layers.find((l) => l.id === id)?.params)
 
     try {
       const { params, usage: spent } = await analyseFabric({ ...payload, controller })
@@ -123,7 +145,17 @@ export default function Panel() {
       // not the answer is still wanted.
       recordLanded(spent)
       const layer = mayLand()
-      if (!layer) return
+      if (!layer) {
+        // The core row of the whole demo. tokensCounted is true here and only
+        // here: recordLanded ran above, before the guard, so this response was
+        // paid for and then thrown away. A row that showed the discard without
+        // that fact would read as "the guard saved you money".
+        emit('discarded', {
+          layerId: id, requestId, check: refusedBy,
+          arrived: triple(params), held: heldNow(), tokensCounted: true,
+        })
+        return
+      }
       // The model's reading is a suggestion; a hand edit made while it was in
       // flight is a decision. Params the user touched during the request keep
       // their current value, and the layer records which ones, so the panel
@@ -132,15 +164,29 @@ export default function Panel() {
       const merged = { ...params }
       for (const key of kept) merged[key] = layer.params[key]
       applyAnalysis(id, merged, 'LIVE', kept)
+      // After the write, not before. A row saying a value landed when it did
+      // not is worse than a row that is missing.
+      emit('land', { layerId: id, requestId, wrote: triple(merged), kept })
     } catch (err) {
       if (err instanceof AnalysisCancelledError) return   // the cancel already set the state
-      if (!mayLand()) return
+      if (!mayLand()) {
+        // The other discard site. tokensCounted is false: the throw happened
+        // at the await, before recordLanded, so nothing was counted here.
+        emit('discarded', {
+          layerId: id, requestId, check: refusedBy,
+          arrived: null, held: heldNow(), tokensCounted: false, error: err.message,
+        })
+        return
+      }
       if (err instanceof InvalidAnalysisError) {
         patchLayer(id, { status: 'idle', source: 'FALLBACK', requestId: null })
+        emit('dropped', { layerId: id, requestId, reason: 'unreadable response, last valid parameters kept', held: heldNow() })
       } else if (err instanceof RateLimitedError) {
         patchLayer(id, { status: 'idle', error: err.message, requestId: null })
+        emit('dropped', { layerId: id, requestId, reason: 'rate limited', held: heldNow() })
       } else {
         patchLayer(id, { status: 'error', error: err.message, requestId: null })
+        emit('dropped', { layerId: id, requestId, reason: err.message, held: heldNow() })
       }
     } finally {
       endRequest(requestId)
