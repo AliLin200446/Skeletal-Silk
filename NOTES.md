@@ -146,6 +146,48 @@ tells you nothing about which one is true.
 
 ---
 
+## A guard seen only under injection is not a guard fired only under injection
+
+Landing check 1 was recorded as "verified 2026-08-07 by fault injection". That
+was true and it was incomplete, and the gap was invisible for three commits.
+
+Check 1 is also the live path for **every ordinary cancel**. It was supposed to
+be unreachable there: the catch was believed to return on
+`AnalysisCancelledError` before the guard was consulted. It does not. `fetch`
+rejects with the abort *reason itself* when one is supplied, so
+`err?.name === 'AbortError'` in `analyseFabric` is false for every abort this
+code makes, control falls through to the generic throw, and what arrives at the
+catch is a plain `Error`. The guard stops it.
+
+Measured, no application code touched:
+
+    controller.abort(new MyErr())  ->  fetch rejects with { name: "MyErr" }
+    controller.abort()             ->  fetch rejects with { name: "AbortError" }
+
+**Why it stayed hidden: both routes end in a bare `return`.** Same silence,
+same screen, same absence of a state change. No test could tell them apart
+because there was nothing to observe. The first real run of the event stream
+found it in one cancel.
+
+The rule: *observing a guard only under injection tells you how you looked, not
+how often it fires.* An unexercised-looking guard and an unobservable one are
+different claims, and only the second one was ever true here. When a branch
+ends in a silent return, the absence of evidence is a property of the branch,
+not of the traffic.
+
+## Why mayLand's failure reason lives beside the return, not in it
+
+The brief said to change the null return into a discriminable reason. Two other
+constraints said the call sites' conditions must behave identically and their
+control flow must not change. Those conflict: both sites test falsiness
+(`if (!layer)` and `if (!mayLand())`), so any truthy reason object inverts both.
+
+The reason went into a closure variable next to the return instead. Same
+information reaches the event stream, the contract stays `layer | null`, and
+both conditions are provably the ones that were there before. Flagged at the
+time rather than quietly resolved, because picking either constraint silently
+would have looked like compliance with both.
+
 ## Before you trust a green result, ask two questions
 
 Two failure modes ran through the whole multi-layer build. Neither is exotic,
@@ -214,13 +256,31 @@ protections nobody has seen work.
 
 | guard | state | why | what would open it |
 |---|---|---|---|
-| landing check 1, request still live | **verified 2026-08-07** | fault injection: abort suppressed so a real 200 arrived 2.4s after a cancel; specular held at the cached 0.12 where the arriving body carried 0.18 | n/a |
-| landing check 2, layer still exists | never fired | every path that removes a layer aborts first (`removeLayer` to `cancelLayer`, undo to `cancelAll`), both with `AnalysisCancelledError`, and the catch returns on that before `mayLand` runs | a layer disappearing without its request being aborted, or an abort not carrying `AnalysisCancelledError` |
+| landing check 1, request still live | **fires in normal use** | first recorded as injection-only, corrected 2026-08-10: it is the live path for every ordinary cancel. Also verified by injection, where a real 200 arrived 2.4s after a cancel and specular held at the cached 0.12 against an arriving 0.18 | n/a |
+| landing check 2, layer still exists | never fired | **reason corrected 2026-08-10.** Every removal path aborts first, which deletes the entry from `inflight`, so check 1 is already false by the time the response resolves and short-circuits this one. The earlier reason given here, that the catch returned on `AnalysisCancelledError` before `mayLand` ran, is wrong: that branch is itself unreachable | a layer disappearing without its request being aborted, so that check 1 still passes and this one is reached |
 | landing check 3, layer still owns this request | never fired | exactly one `beginRequest` call site, targeting `primary.id`. Multi-select widens which layers a uniform edit writes to, not which get analysed | analysing a whole selection at once, or a second `beginRequest` call site that can target a busy layer |
 | `isLayerBusy`, this layer is already analysing | never fired | unreachable from the UI: the preset buttons carry `disabled={busy}`, so a second click never reaches `beginRequest` | the text-input or drop path starting an analysis on a busy layer |
 
 Step 5 was expected to open check 3 and did not. Step 4's undo was expected to
 open check 2 and did not. Both were checked after building, not predicted.
+
+Two error branches in the same function look unreachable, recorded in the same
+format. Neither has been exhaustively proven dead, and neither has been touched.
+
+| branch | state | why | what would open it |
+|---|---|---|---|
+| `Panel.jsx:140-141`, `RateLimitedError` | looks unreachable | `analyseFabric` never throws that type. Its throws are `AnalysisCancelledError`, plain `Error`, and `InvalidAnalysisError`. The `RateLimitedError`s from `beginRequest` are caught earlier and never reach this catch | `analyseFabric` starting to throw one, or requests.js rate-limit errors being made to propagate down this path |
+| `Panel.jsx:136`, `AnalysisCancelledError` | looks unreachable | `fetch` rejects with the abort reason itself, so `err?.name === 'AbortError'` in `analyseFabric` is false and it rethrows a generic `Error`. What arrives here is never the cancellation type | aborting without a reason, or `analyseFabric` testing `signal.aborted` rather than `err.name` |
+
+### Suspected, not confirmed
+
+`analyseFabric:11-27` intends to report "ANALYSIS TIMED OUT AFTER 30S". By the
+same mechanism as the row above, a real timeout would report "ANALYSIS
+UNREACHABLE" instead, because the timeout also aborts with a reason. This is
+inference from the abort semantics measured above; **it has not been checked
+against a real 30 second timeout.** Recorded as suspected, not as a known
+defect, and deliberately not fixed: changing `analyseFabric` now would put the
+Step 1-7 verifications back in question for a message string.
 
 ### What the harness covers
 
@@ -260,6 +320,12 @@ component listens to rather than from a real gesture.
 
 STYLE.md reconciliation with the portfolio STYLE: not started. First decision
 is which file is canonical.
+
+Two comments in `Panel.jsx` still carry the corrected claim: the block above
+`mayLand` says check 1 was verified by injection without saying it is also the
+cancel path, and the check 2 comment gives the superseded reason. The code is
+right; the comments are stale. Not edited, because this pass was allowed one
+existing-code change and it was spent on the discriminator.
 
 `cac-internal-docs` still has no remote. Local mirror only, at
 `~/Vault/git-mirrors/`. A private remote is the actual answer.
