@@ -32,6 +32,10 @@
 //   becomes one entry per layer, undo will appear to work while walking back
 //   through layers one at a time, and only this harness will say so.
 //
+//   A cancel is covered as of Phase 3 of the lab work. It was missing, and its
+//   absence made a passing run under the suppress-abort injection meaningless:
+//   the injection changes cancelRequest only, and nothing here called it.
+//
 //   Reorder is covered as of Step 6. The assertion the old TODO asked for is
 //   the one that runs: an undone reorder must restore the order AND leave
 //   every layer's content untouched. The state key is per-row content in row
@@ -169,6 +173,25 @@ window.__undoInvariant = async function undoInvariant() {
     setRange(document.querySelectorAll('input[type=range]')[2], 0.91)
   })
   await settle()        // the landing merges, and must NOT push an entry
+  await waitMs(600)
+
+  // A cancel. Added after the suite passed with the suppress-abort injection
+  // switched on, which proved nothing: cancelRequest is the only function that
+  // injection touches, and no step reached it. A suite that never walks a path
+  // says nothing about a change to that path.
+  //
+  // Layer 2 is deliberate. It has only ever had uniform edits, never an
+  // analysis, so the per-layer cooldown cannot refuse this one and quietly turn
+  // the step into a no-op that passes for the wrong reason.
+  await step('swatch on layer 2, then cancel it', async () => {
+    click(rows()[1]); await ticks(8)
+    document.querySelectorAll('.preset')[0].click()
+    const t = performance.now()
+    while (performance.now() - t < 10000 && !document.querySelector('button.layer-status')) await tick()
+    document.querySelector('button.layer-status')?.click()
+    await ticks(8)
+  })
+  await settle()
   await waitMs(600)
 
   // Batch edit across a multi-selection. One action, one entry, all layers.

@@ -188,11 +188,33 @@ both conditions are provably the ones that were there before. Flagged at the
 time rather than quietly resolved, because picking either constraint silently
 would have looked like compliance with both.
 
-## Before you trust a green result, ask two questions
+## A suite that does not walk a path says nothing about that path
 
-Two failure modes ran through the whole multi-layer build. Neither is exotic,
-and both are cheap to check, but each one produced a confident wrong answer
-that survived until something else contradicted it.
+Distinguishability asks whether a failure would have looked different.
+Coverage asks whether the failing code ran at all. The second is easier to miss
+because everything about the run looks right: real actions, real assertions, a
+real green result.
+
+The tell is a change scoped to one function. Before reading a pass as evidence
+that the change is safe, check that some step reaches that function. Here the
+suppress-abort injection touched `cancelRequest` alone, and the suite had eleven
+steps, none of which cancelled anything.
+
+Both belong to the same question, and the merged form is in **Before you trust
+a green result** above: could this run have come out differently if the thing
+under test were broken? Wrong instrument, indistinguishable outcomes, and
+unexercised code are three ways of answering no.
+
+## Before you trust a green result, ask what would have made it fail
+
+Three failure modes ran through this build. They look separate and they are one
+question: **could this run have come out differently if the thing under test
+were broken?** If not, the pass is not evidence, whatever the runner printed.
+
+The three ways the answer turns out to be no: the measurement itself is wrong,
+the pass and the fail look alike, or the code never ran at all. The third was
+added late, after a suite passed with an injection live and it turned out
+nothing in the suite reached the injected path.
 
 **Was the measurement itself right?** Six times a tool reported success and
 the tool was wrong:
@@ -206,7 +228,7 @@ the tool was wrong:
 | `git bundle verify`: "is okay, records a complete history" | cloning it restored **0 of 21** files. The ref sat under `refs/backup/`, which `clone` does not check out |
 | `while (glyph !== '')` waiting for an analysis to land | exits immediately when the layer is idle. Reported LANDED 0 with a real API response already in hand |
 
-**Are the pass state and the fail state distinguishable?** Three times a test
+**Are the pass state and the fail state distinguishable?** Four times a test
 would have passed no matter what the code did:
 
 - **BROCADE.** Cancelled an analysis and confirmed the numbers did not change,
@@ -220,6 +242,24 @@ would have passed no matter what the code did:
   it, on a board where every row already showed the same numbers the model
   returned. Re-run with the other rows set to 0.21 and 0.87, so a mislanding
   would have overwritten a value with a name.
+- **The injection demo itself.** The suppress-abort switch was supposed to show
+  a late response being refused while the state held a different value. On the
+  first run the model returned `0.48 0.38 0.12`, exactly what the state already
+  held: `arrived` and `holds` printed the same triple, and a guard that had
+  failed would have printed it too. Re-run with a slider dragged to `0.90`
+  during the flight, so the two could not coincide, and the row finally carried
+  its own proof.
+
+**Did the code under test actually run?** Once, and it was the least visible of
+the three:
+
+- **The invariant suite passed with the suppress-abort injection switched on.**
+  That read as "the injection is harmless". It was not: the injection changes
+  `cancelRequest` and nothing in the twelve-step suite called it. The suite was
+  not exercising the change, so it had nothing to say about it. A cancel step
+  was added; with it, the late response now really does arrive mid-run, 3.5s
+  after the abort, and is refused while the suite still passes. That is a
+  result. The previous one was a shape.
 
 Together: **before accepting a pass, ask whether the measurement is sound and
 whether a failure would have looked different.** Neither question is answered
@@ -289,9 +329,12 @@ reachable by undo is a state the user passed through. Eleven actions, eleven
 undo steps, eleven redo steps.
 
 Covered: add, swatch, file drop, text submit, uniform change, multi-select
-batch edit, a hand edit made mid-flight, reorder, delete.
+batch edit, a hand edit made mid-flight, cancel, reorder, delete. Twelve
+actions as of the lab work; the cancel step was added when a pass under the
+suppress-abort injection turned out to mean only that no step reached
+`cancelRequest`.
 
-Not covered: the four race behaviours (they need a slow request, and the stub
+Not covered: the remaining race behaviours (they need a slow request, and the stub
 that provides one is built, measured and reverted rather than committed);
 anything visual; the cooldown and concurrency guards; and any path that needs
 a real pointer, since the drag is synthesised from the event sequence the
@@ -320,6 +363,10 @@ component listens to rather than from a real gesture.
 
 STYLE.md reconciliation with the portfolio STYLE: not started. First decision
 is which file is canonical.
+
+The lab panel is positioned at `left: 232px` and has only been looked at on a
+1440px viewport. Whether it collides with anything between 820px, where the
+mobile gate lifts, and about 1200px is unchecked.
 
 Two comments in `Panel.jsx` still carry the corrected claim: the block above
 `mayLand` says check 1 was verified by injection without saying it is also the
