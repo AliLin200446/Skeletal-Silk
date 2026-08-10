@@ -72,16 +72,16 @@ export function beginRequest(layerId) {
   // does not reach this function at all. Kept as defence in depth, because the
   // text-input and drop paths could change. Treat it as untested code.
   if (isLayerBusy(layerId)) {
-    emit('blocked', { layerId, reason: 'layer already analysing' })
+    emit('refused', { layerId, reason: 'layer already analysing' })
     throw new RateLimitedError('THIS LAYER IS ALREADY ANALYSING')
   }
   if (inflight.size >= MAX_CONCURRENT) {
-    emit('blocked', { layerId, reason: `concurrency cap, ${inflight.size} of ${MAX_CONCURRENT} in flight` })
+    emit('refused', { layerId, reason: `concurrency cap, ${inflight.size} of ${MAX_CONCURRENT} in flight` })
     throw new RateLimitedError(`${MAX_CONCURRENT} ANALYSES AT ONCE IS THE LIMIT — WAIT FOR ONE TO LAND`)
   }
   const since = Date.now() - (lastRequestAt.get(layerId) ?? 0)
   if (since < COOLDOWN_MS) {
-    emit('blocked', { layerId, reason: `cooldown, ${Math.ceil((COOLDOWN_MS - since) / 1000)}s remaining` })
+    emit('refused', { layerId, reason: `cooldown, ${Math.ceil((COOLDOWN_MS - since) / 1000)}s remaining` })
     throw new RateLimitedError(
       `EASY — WAIT ${Math.ceil((COOLDOWN_MS - since) / 1000)}S BEFORE RE-ANALYSING THIS LAYER`,
     )

@@ -10,7 +10,7 @@ import { subscribe, getEvents, clearEvents } from '../utils/lab'
 const TYPE_LABEL = {
   submit: 'SUBMIT',
   abort: 'ABORT',
-  blocked: 'BLOCKED',
+  refused: 'REFUSED',
   land: 'LAND',
 }
 
@@ -35,7 +35,7 @@ export default function LabPanel() {
         {events.length === 0 && (
           <div className="lab-empty">
             nothing yet. Pick a swatch to see a request submitted, cancel it to
-            see the abort, or fire the same layer twice to see one blocked.
+            see the abort, or fire the same layer twice to see one refused.
           </div>
         )}
         {events.map((e) => (

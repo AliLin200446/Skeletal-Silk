@@ -268,6 +268,6 @@ button.layer-status:hover{color:var(--ink)}
 .lab-row .lab-reason{grid-column:2 / -1;color:var(--ink-dim)}
 .lab-t{color:var(--ink-dim)}
 .lab-type{color:var(--ink)}
-.lab-row-blocked .lab-type{color:var(--ink-dim)}
+.lab-row-refused .lab-type{color:var(--ink-dim)}
 .lab-note{font-size:9px;line-height:1.5;color:var(--ink-dim);
   margin-top:8px;padding-top:7px;border-top:1px solid var(--rule)}
