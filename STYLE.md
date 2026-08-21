@@ -55,6 +55,17 @@ something actually went wrong.
 
 ## Open
 
-- Reconcile with the portfolio STYLE file. Two design systems by the same
-  person that disagree on palette tokens or the shadow rule is worse than
-  either one alone. Not started; decide which is canonical first.
+- Reconcile with the portfolio's design system file. Two design systems by
+  the same person that disagree on palette tokens or the shadow rule is
+  worse than either one alone. Not started; decide which is canonical
+  first. Nothing else can be reconciled before that answer.
+
+  The file is `/Users/alilin/Applications/portfolio/content/notes/design-system.md`.
+  This entry used to say "the portfolio STYLE file" and no file by that
+  name exists there, so the pointer did not resolve. That repo now
+  carries the matching half of this note; for weeks it was written here
+  only, which meant it was invisible from the side that needed it.
+
+  What that file holds: a five level type scale, a three weight rule
+  measured off the actual font faces, a deliberate SVG exemption, and
+  the hero Solution slot definition.
