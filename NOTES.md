@@ -83,6 +83,10 @@ sixth, and a second failure mode alongside it. The full list, and the pair of
 questions the two modes reduce to, are in **Before you trust a green result**
 below — that table supersedes the one that used to sit here.
 
+Concatenating several targets into one check makes a pass unattributable.
+Seven instances now, all mine, all caught by asking what a failure would have
+looked like.
+
 ## Before using truncated output, check what was cut
 
 `head`, `tail`, `grep -m`, `--max-count`. Every one of them will hand you a
@@ -259,7 +263,7 @@ the pass and the fail look alike, or the code never ran at all. The third was
 added late, after a suite passed with an injection live and it turned out
 nothing in the suite reached the injected path.
 
-**Was the measurement itself right?** Six times a tool reported success and
+**Was the measurement itself right?** Seven times a tool reported success and
 the tool was wrong:
 
 | reported | actually |
@@ -270,6 +274,7 @@ the tool was wrong:
 | `git status -sb \| head -3` showing two deleted files | there were sixteen |
 | `git bundle verify`: "is okay, records a complete history" | cloning it restored **0 of 21** files. The ref sat under `refs/backup/`, which `clone` does not check out |
 | `while (glyph !== '')` waiting for an analysis to land | exits immediately when the layer is idle. Reported LANDED 0 with a real API response already in hand |
+| `curl A B C \| grep -c "string"` checking three pages at once | a match on any one page counted as a pass for all three. Two of the three were still serving old copy |
 
 **Are the pass state and the fail state distinguishable?** Four times a test
 would have passed no matter what the code did:
