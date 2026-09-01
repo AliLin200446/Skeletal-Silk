@@ -3,6 +3,15 @@
 Things that were wrong and how they were caught. Kept because the correction
 is more reusable than the fix.
 
+> **The other half of this lives elsewhere.** Lessons from the Latent engine
+> are in `latent/docs/DECISIONS.md` section 3, in that repo's own format of
+> claim, reason, and reversal condition. Two files rather than one on purpose:
+> two repositories, two sets of surrounding context, and a lesson usually only
+> makes sense next to the code that taught it. Merging them would produce a
+> list nobody reads in either project. When a rule turns out to be general
+> rather than local, it gets stated in both, with the second one saying where
+> it came from.
+
 ## Distrust a measurement that flatters you
 
 `gl.finish()` does not block in Chrome. Timing a render loop around it reported
