@@ -48,8 +48,39 @@ something actually went wrong.
 - **No border radius.** Anywhere.
 - **Geist Mono for numbers**, with `font-variant-numeric: tabular-nums`
   wherever figures sit in a column and would otherwise jitter.
-- **9px is the floor** for any text a user is expected to read. Established
-  by a typography audit; several labels sat at 7.5px and were unreadable.
+- **Four type tiers, and 11px is the floor.** Tokens live in `:root`.
+
+  | tier | size / weight | for |
+  |---|---|---|
+  | title | 24px / 500 | the page title. Defined, not yet applied. |
+  | head | 13px / 500 | section headings |
+  | body | 13px / 400 | prose, layer names, parameter values |
+  | label | 11px / 500 | units, indices, status markers, data readouts |
+
+  The floor used to be 9px, set by an earlier typography audit that was
+  rescuing labels from 7.5px. It stopped being a floor and became the
+  whole scale: 89% of the text on the page sat exactly on it, six nodes
+  were under it, and the largest type anywhere was 11px. A floor that
+  everything rests on is not a floor.
+
+  **Tracking falls as size rises.** 0.28em was carrying legibility at 9px;
+  at 13px the same figure is just gaps, and it was what pushed USAGE THIS
+  SESSION onto two lines. Per class, not a token: the right amount depends
+  on how much of the string is caps.
+
+  The title tier has no user. SKELETAL SILK at 24px needs 263px of line
+  and the left column gives 164px, so it holds at the label size. Setting
+  it to 14px, the largest that happens to fit there, would answer a layout
+  question with a number.
+
+  **9px is gone from the shipped surface. The `?lab=1` panel still has
+  eight rules at 9px, and its grid columns were cut for that size, so
+  raising it is a layout change. Not a straggler, a separate job.**
+
+- **Contrast: anything explaining something is `--ink-mid` or better.**
+  `--ink-dim` is 2.8:1 on the paper and was carrying every line that told
+  the user what had just happened. It is for ordinals, counters and
+  arrows: `03` says nothing the order has not already said.
 - **No CJK** in shipped UI copy.
 - **No em dashes** in shipped UI copy.
 
