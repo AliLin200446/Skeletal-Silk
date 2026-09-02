@@ -88,10 +88,19 @@ export function makeLayer(init = {}) {
 // the row's oxblood ✕ next to an empty message line, which says something is
 // wrong and refuses to say what.
 //
-// `status: 'cancelled'` is deliberately NOT in this list. Its banner is fixed
-// text driven by the status alone, so it carries no stale message, and a
-// cancel is a decision the user made about this layer rather than the outcome
-// of a request that no longer exists. Left as it was until there is a reason.
+// `status: 'cancelled'` is deliberately NOT in this list, and the difference
+// is worth stating because the two look like they should match and do not.
+//
+// `error` carries a message that can expire. "WAIT 8S BEFORE RE-ANALYSING
+// THIS LAYER" names a constraint that stops being true eight seconds later,
+// and a restored copy of it describes a world that no longer exists.
+// `cancelled` carries no message: its banner is fixed text driven by the
+// status alone, so there is nothing in it that can go stale.
+//
+// And it means something different. An error or a refusal is the outcome of a
+// request; a cancel is a decision the user made about this layer, which is the
+// kind of thing history is for. Making these two consistent would mean
+// dropping a decision to keep a rule tidy.
 const normaliseLayer = (l) => ({
   ...l,
   params: cloneParams(l.params),

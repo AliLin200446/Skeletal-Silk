@@ -1,3 +1,13 @@
+// Four tiers, floor 11px, matching the tokens in App.css. Written out here
+// rather than referenced because this panel is styled inline; the values must
+// stay in step with :root by hand until it moves to classes.
+//
+// HEAD and BODY are the same size and differ by weight, which is the whole
+// distinction between a heading and the sentence under it at this scale.
+const HEAD = { fontSize: 13, fontWeight: 500, letterSpacing: '0.12em' }
+const BODY = { fontSize: 13, fontWeight: 400, letterSpacing: '0.02em', lineHeight: 1.6 }
+const LABEL = { fontSize: 11, fontWeight: 500, letterSpacing: '0.08em' }
+
 export default function LeftPanel() {
   const s = {
     fontFamily: 'var(--font)',
@@ -18,12 +28,18 @@ export default function LeftPanel() {
       flexDirection:'column',
     }}>
 
-      {/* Title — fixed top left */}
+      {/* Title — fixed top left.
+          Still at the label size while every other tier moved. SKELETAL SILK
+          at the 24px title tier needs 263px of line and this column gives 164,
+          so it cannot be the page title where it currently stands. Giving it
+          14px, the largest that fits here, would answer a layout question with
+          a number and make the column easier to leave alone later. It holds at
+          11px so the mismatch stays visible. */}
       <div style={{padding:'22px 16px 18px', borderBottom:'0.5px solid rgba(255,255,255,0.1)'}}>
         <div style={{fontSize:11,fontWeight:500,letterSpacing:'0.24em',color:'#fff',lineHeight:1}}>
           SKELETAL SILK
         </div>
-        <div style={{marginTop:9,fontSize:11,letterSpacing:'0.02em',color:'rgba(255,255,255,0.55)',lineHeight:1.5}}>
+        <div style={{marginTop:9,...BODY,color:'rgba(255,255,255,0.62)'}}>
           reads a fabric photo into four numbers that drive a material shader
         </div>
       </div>
@@ -39,10 +55,10 @@ export default function LeftPanel() {
 
         {/* Concept */}
         <div style={{paddingTop:22}}>
-          <div style={{fontSize:9,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',marginBottom:14}}>
+          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:14}}>
             WHAT IT DOES
           </div>
-          <div style={{fontSize:11,letterSpacing:'0.03em',color:'rgba(255,255,255,0.62)',lineHeight:1.7}}>
+          <div style={{...BODY,color:'rgba(255,255,255,0.7)',lineHeight:1.7}}>
             Photograph a material. Claude Vision returns four numbers that
             drive — and export — a GLSL shader.
           </div>
@@ -50,7 +66,7 @@ export default function LeftPanel() {
 
         {/* System */}
         <div style={{paddingTop:22}}>
-          <div style={{fontSize:9,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',marginBottom:16}}>
+          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:16}}>
             SYSTEM
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:11}}>
@@ -61,10 +77,13 @@ export default function LeftPanel() {
               ['04', 'EXPORT',   'shader plus its parameters'],
             ].map(([n, label, desc]) => (
               <div key={n} style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-                <div style={{fontSize:9,color:'rgba(255,255,255,0.18)',flexShrink:0,marginTop:1,width:14}}>{n}</div>
-                <div>
-                  <div style={{fontSize:9,letterSpacing:'0.16em',color:'rgba(255,255,255,0.55)',marginBottom:3}}>{label}</div>
-                  <div style={{fontSize:10,letterSpacing:'0.02em',color:'rgba(255,255,255,0.55)',lineHeight:1.55}}>{desc}</div>
+                {/* The ordinals stay at 1.5:1. They are position, not
+                    information: reading 03 tells you nothing the order does
+                    not already say. */}
+                <div style={{...LABEL,color:'rgba(255,255,255,0.18)',flexShrink:0,marginTop:2,width:18}}>{n}</div>
+                <div style={{minWidth:0}}>
+                  <div style={{...LABEL,letterSpacing:'0.12em',color:'rgba(255,255,255,0.62)',marginBottom:3}}>{label}</div>
+                  <div style={{...BODY,color:'rgba(255,255,255,0.62)',lineHeight:1.55}}>{desc}</div>
                 </div>
               </div>
             ))}
@@ -73,7 +92,7 @@ export default function LeftPanel() {
 
         {/* Interaction */}
         <div style={{paddingTop:22}}>
-          <div style={{fontSize:9,letterSpacing:'0.2em',color:'rgba(255,255,255,0.3)',marginBottom:16}}>
+          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:16}}>
             INTERACTION
           </div>
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
@@ -81,11 +100,16 @@ export default function LeftPanel() {
               ['DRAG',    'Orbit mesh'],
               ['SCROLL',  'Zoom'],
               ['MOUSE',   'Bend surface'],
-              ['SLIDERS', 'Live GLSL uniforms'],
+              // "Live GLSL uniforms" needs 119px beside a 57px key in a 164px
+              // column. Dropping the word that was doing least is the smaller
+              // change; the alternative is stacking the pair, which is layout.
+              ['SLIDERS', 'GLSL uniforms'],
             ].map(([k,v]) => (
-              <div key={k} style={{display:'flex',justifyContent:'space-between'}}>
-                <span style={{fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.5)'}}>{k}</span>
-                <span style={{fontSize:9,letterSpacing:'0.06em',color:'rgba(255,255,255,0.28)'}}>{v}</span>
+              <div key={k} style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                <span style={{...LABEL,letterSpacing:'0.1em',color:'rgba(255,255,255,0.62)'}}>{k}</span>
+                {/* Was 2.2:1, the worst contrast on the page, on the text that
+                    says what each gesture does. */}
+                <span style={{...LABEL,fontWeight:400,letterSpacing:'0.02em',color:'rgba(255,255,255,0.55)'}}>{v}</span>
               </div>
             ))}
           </div>
@@ -93,7 +117,7 @@ export default function LeftPanel() {
 
         {/* Credit */}
         <div style={{paddingTop:22,paddingBottom:28}}>
-          <div style={{fontSize:9,letterSpacing:'0.14em',color:'rgba(255,255,255,0.45)',lineHeight:1.8}}>
+          <div style={{...LABEL,letterSpacing:'0.1em',color:'rgba(255,255,255,0.5)',lineHeight:1.8}}>
             ALI LIN · NYU IMA 2026<br/>
             ALILINLAB.COM
           </div>

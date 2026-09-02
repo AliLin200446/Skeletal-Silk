@@ -327,7 +327,7 @@ export default function Panel() {
           borderRight: collapsed ? '1px solid var(--rule)' : 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           cursor: 'pointer', zIndex: 20,
-          fontSize: '9px', color: 'var(--ink-mid)',
+          fontSize: '11px', color: 'var(--ink-mid)',
           transition: 'right 0.3s',
           letterSpacing: 0,
         }}
@@ -579,7 +579,9 @@ export default function Panel() {
             <div>CLICK → SELECT LAYER</div>
             <div>SHIFT / CMD → MULTI-SELECT</div>
             <div>DRAG → ORBIT</div>
-            <div>SLIDERS → LIVE GLSL UNIFORMS</div>
+            {/* Shortened for the same reason as the left panel's copy of this
+                line: 28 characters at the label size overrun 198px. */}
+            <div>SLIDERS → GLSL UNIFORMS</div>
             <div>CMD Z / SHIFT → UNDO, REDO</div>
           </div>
         </section>
