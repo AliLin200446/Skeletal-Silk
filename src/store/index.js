@@ -63,7 +63,7 @@ export function makeLayer(init = {}) {
   }
 }
 
-// A snapshot records the document, and neither of these is part of it.
+// A snapshot records the document, and none of these is part of it.
 //
 // `status: 'analysing'` describes a network request, not a material. By the
 // time you travel back to a snapshot that held it, undo has already aborted
@@ -75,11 +75,29 @@ export function makeLayer(init = {}) {
 // `requestId` is a handle into the inflight map, which lives outside the store
 // and outside history. A restored id would name a request that no longer
 // exists.
+//
+// `error` is the result of one attempt, on the same argument. Undo returns to
+// the document, not to the attempt. A restored "WAIT 8S BEFORE RE-ANALYSING
+// THIS LAYER" is worse than no message at all: it describes a cooldown that
+// expired long ago, so the panel states a constraint that does not exist and
+// the user cannot tell by looking. Same for a restored failure message, which
+// names a request nobody made.
+//
+// `status: 'error'` goes with it, because the two are one fact and half of it
+// cannot survive alone. Keeping the status while dropping the text would leave
+// the row's oxblood ✕ next to an empty message line, which says something is
+// wrong and refuses to say what.
+//
+// `status: 'cancelled'` is deliberately NOT in this list. Its banner is fixed
+// text driven by the status alone, so it carries no stale message, and a
+// cancel is a decision the user made about this layer rather than the outcome
+// of a request that no longer exists. Left as it was until there is a reason.
 const normaliseLayer = (l) => ({
   ...l,
   params: cloneParams(l.params),
-  status: l.status === 'analysing' ? 'idle' : l.status,
+  status: l.status === 'analysing' || l.status === 'error' ? 'idle' : l.status,
   requestId: null,
+  error: null,
 })
 
 // Selection is NOT in here. It is view state, not document: the stack answers
