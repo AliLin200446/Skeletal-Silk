@@ -44,121 +44,95 @@ function Slider({ label, paramKey, selected }) {
   const { value, mixed } = readParam(selected, paramKey)
   const count = selected.length
   return (
-    <div className="slider-row">
-      <div className="slider-label">
-        <span>{label}{count > 1 ? ` · ${count}` : ''}</span>
-        <span className={`slider-val${mixed ? ' is-mixed' : ''}`}>
-          {mixed ? MIXED : value.toFixed(2)}
-        </span>
-      </div>
-      {/* The thumb sits at the first selected layer's value even when mixed.
-          There is no honest position for a disagreement, and parking it at
-          zero would misreport more than it explains. */}
-      <input type="range" min="0" max="1" step="0.01" value={value}
-        onChange={(e) => setSelectedParam(paramKey, parseFloat(e.target.value))}
-        className="slider" />
+  <div className="slider-row">
+    <div className="slider-label">
+      <span>{label}{count > 1 ? ` · ${count}` : ''}</span>
+      <span className={`slider-val${mixed ? ' is-mixed' : ''}`}>
+        {mixed ? MIXED : value.toFixed(2)}
+      </span>
     </div>
-  )
-}
-
-function ParamBar({ label, value }) {
-  return (
-    <div className="param-bar-row">
-      <span className="param-bar-label">{label}</span>
-      <div className="param-bar-track">
-        <div className="param-bar-fill" style={{ width: `${Math.round(value * 100)}%` }} />
-      </div>
-      <span className="param-bar-val">{value.toFixed(2)}</span>
-    </div>
-  )
+    {/* The thumb sits at the first selected layer's value even when mixed.
+        There is no honest position for a disagreement, and parking it at
+        zero would misreport more than it explains. */}
+    <input type="range" min="0" max="1" step="0.01" value={value}
+      onChange={(e) => setSelectedParam(paramKey, parseFloat(e.target.value))}
+      className="slider" />
+  </div>
+)
 }
 
 export default function LayerInspector() {
-  const primary = useStore(selectPrimary)
-  const selected = useSelectedLayers()
-  // Local, and deliberately not in the store: which panes a reader has opened
-  // is not part of the document and must never reach an undo snapshot.
-  const [showRaw, setShowRaw] = useState(false)
-  if (!primary) return null
+const primary = useStore(selectPrimary)
+const selected = useSelectedLayers()
+// Local, and deliberately not in the store: which panes a reader has opened
+// is not part of the document and must never reach an undo snapshot.
+const [showRaw, setShowRaw] = useState(false)
+if (!primary) return null
 
-  const selectedCount = selected.length
-  const p = primary.params
-  const colorHex = hex(p.color)
-  const colorMixed = selected.some((l) => hex(l.params.color) !== colorHex)
+const selectedCount = selected.length
+const p = primary.params
+const colorHex = hex(p.color)
+const colorMixed = selected.some((l) => hex(l.params.color) !== colorHex)
 
-  return (
-    <>
-      <section className="panel-section">
-        <div className="section-label">
-          UNIFORMS
-          {selectedCount > 1 && <span className="layer-count">{selectedCount} SELECTED</span>}
-        </div>
-        {selectedCount > 1 && (
-          <div className="source-note" style={{ marginTop: 0, marginBottom: 8 }}>
-            edits apply to all {selectedCount}, as one undo step
+return (
+    <section className="panel-section">
+      <div className="section-label">
+        UNIFORMS
+        {selectedCount > 1
+          ? <span className="layer-count">{selectedCount} SELECTED</span>
+          : <span className="source-tag" title={SOURCE_TITLE[primary.source]}>
+              {SOURCE_TAG[primary.source]}
+            </span>}
+      </div>
+
+      {/* Where these three numbers came from, said once, on the heading of
+          the numbers themselves.
+
+          It used to be said in three places at once: this marker sat on the
+          CLAUDE ANALYSIS heading over a second copy of the same figures, the
+          wording under it explained the same thing again, and the pipeline's
+          middle cell carried "nothing read yet" for the cold case. All three
+          were answering one question. */}
+      <div className="source-note" style={{ marginTop: -4, marginBottom: 9 }}>
+        {selectedCount > 1
+          ? `edits apply to all ${selectedCount}, as one undo step. Source shown for ${primary.description ? primary.description.toUpperCase() : 'UNTITLED'} only`
+          : primary.status === 'analysing' ? 'reading now'
+          : primary.keptKeys?.length
+            ? `read from your image, except ${primary.keptKeys.join(' and ').toUpperCase()}, which you set by hand while it was reading`
+          : primary.source === 'LIVE' ? 'read from your image just now'
+          : primary.source === 'FALLBACK' ? 'last valid values kept, the response could not be read'
+          : 'nothing read yet, these are stored values. Pick a swatch or upload a photo'}
+      </div>
+
+      <Slider label="RIGIDITY" paramKey="rigidity" selected={selected} />
+      <Slider label="FLOW"     paramKey="flow"     selected={selected} />
+      <Slider label="SPECULAR" paramKey="specular" selected={selected} />
+      <div className="color-row">
+        <span className="slider-label-text">COLOR</span>
+        <div className="color-swatch" style={{ background: colorHex }} />
+        <span className={`color-hex${colorMixed ? ' is-mixed' : ''}`}>
+          {colorMixed ? MIXED : colorHex.toUpperCase()}
+        </span>
+      </div>
+
+      {/* The bars that stood here drew the same three numbers as the sliders
+          above, without the ability to move them, and the DETECTED swatch
+          repeated the COLOR row. Between the two readouts the one you can
+          operate wins. What is left behind the disclosure is the only thing
+          that was not a duplicate: the response verbatim, and the wiring, for
+          a reader taking the shader somewhere else. */}
+      <button className="link-btn disclosure" onClick={() => setShowRaw((v) => !v)}>
+        {showRaw ? 'HIDE RAW RESPONSE' : 'SHOW RAW RESPONSE'}
+      </button>
+      <Reveal when={showRaw}>
+        <div className="disclosure-body">
+          <pre className="raw-json">{primary.rawJson}</pre>
+          <div className="uniform-map-label">the model&rsquo;s reading, wired straight to the shader&rsquo;s uniforms</div>
+          <div className="uniform-map">
+            rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
           </div>
-        )}
-        <Slider label="RIGIDITY" paramKey="rigidity" selected={selected} />
-        <Slider label="FLOW"     paramKey="flow"     selected={selected} />
-        <Slider label="SPECULAR" paramKey="specular" selected={selected} />
-        <div className="color-row">
-          <span className="slider-label-text">COLOR</span>
-          <div className="color-swatch" style={{ background: colorHex }} />
-          <span className={`color-hex${colorMixed ? ' is-mixed' : ''}`}>
-            {colorMixed ? MIXED : colorHex.toUpperCase()}
-          </span>
         </div>
-      </section>
-
-      <section className="panel-section">
-        <div className="section-label">
-          CLAUDE ANALYSIS
-          <span title={SOURCE_TITLE[primary.source]}
-            style={{ float: 'right', color: 'var(--ink-mid)', letterSpacing: '0.2em' }}>
-            {SOURCE_TAG[primary.source]}
-          </span>
-        </div>
-        {selectedCount > 1 && (
-          <div className="source-note">reading of layer {primary.description ? primary.description.toUpperCase() : 'UNTITLED'} only, not the selection</div>
-        )}
-        {primary.source === 'CACHED' && (
-          <div className="source-note">stored values — upload a photo to run Claude on it</div>
-        )}
-        {primary.source === 'LIVE' && !primary.keptKeys?.length && (
-          <div className="source-note">read from your image just now</div>
-        )}
-        {!!primary.keptKeys?.length && (
-          <div className="source-note">
-            read from your image, except {primary.keptKeys.join(' and ').toUpperCase()},
-            which you set by hand while it was reading
-          </div>
-        )}
-
-        <ParamBar label="RIGIDITY" value={p.rigidity} />
-        <ParamBar label="FLOW"     value={p.flow} />
-        <ParamBar label="SPECULAR" value={p.specular} />
-        <div className="color-row" style={{ marginTop: 10 }}>
-          <span className="slider-label-text">DETECTED</span>
-          <div className="color-swatch" style={{ background: colorHex }} />
-          <span className="color-hex">{colorHex.toUpperCase()}</span>
-        </div>
-
-        {/* 311px of reference for a reader who wants to take the shader
-            somewhere else. Everyone else has already got the answer from the
-            three bars above it. On request rather than by default. */}
-        <button className="link-btn disclosure" onClick={() => setShowRaw((v) => !v)}>
-          {showRaw ? 'HIDE RAW RESPONSE' : 'SHOW RAW RESPONSE'}
-        </button>
-        <Reveal when={showRaw}>
-          <div className="disclosure-body">
-            <pre className="raw-json">{primary.rawJson}</pre>
-            <div className="uniform-map-label">the model&rsquo;s reading, wired straight to the shader&rsquo;s uniforms</div>
-            <div className="uniform-map">
-              rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
-            </div>
-          </div>
-        </Reveal>
-      </section>
-    </>
-  )
+      </Reveal>
+    </section>
+)
 }

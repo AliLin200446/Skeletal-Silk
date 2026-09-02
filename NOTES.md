@@ -352,6 +352,85 @@ the reason in the section above.
 
 ---
 
+## A justification you wrote yourself is not evidence
+
+A wrong diagnosis produced a line of code, and the line came with a paragraph
+arguing it was load-bearing. Forcing `flex-shrink` back to 1 gave identical
+numbers. The comment was the strongest evidence for the line, and I wrote it
+myself. A justification written by the same person who wrote the code is not
+evidence, it is a second copy of the same belief.
+
+The diagnosis was wrong for a reason worth keeping separately. A collapsing
+section measured 0px with every class and condition reading correct, so the
+transition looked broken and `flex-shrink:0` looked like the fix. The real
+cause was that the browser pane was closed: `visibilityState` was `hidden` and
+the page painted **zero animation frames in 600ms**, so no CSS transition ever
+advanced and every reading was the frozen start value. Same family as
+`gl.finish()` reporting 0.17ms: the instrument was broken, and its output
+looked like a result.
+
+That produced a second wrong conclusion on the way, recorded because it was
+stated confidently: "`grid-template-rows: 0fr -> 1fr` does not work here". It
+works. Thirty lines of ResizeObserver were written to replace four lines of
+CSS that were never broken.
+
+**Test:** to check a layout end state while frames are frozen, kill the
+transition and measure. To check whether a defensive line is doing anything,
+force its opposite and see if any number moves.
+
+---
+
+## Two incomplete lists of the same thing
+
+Two incomplete lists of the same thing, in two columns, neither complete alone.
+Nobody had used the interface end to end after writing both. A feature written
+twice by the same person is a sign the two halves were never read together.
+
+The left column listed DRAG, SCROLL, MOUSE and SLIDERS. The right column listed
+CLICK, SHIFT/CMD, DRAG, SLIDERS and CMD-Z. Two entries appeared in both, and
+neither list mentioned everything: the left never said you could select a layer
+or undo, the right never said you could zoom or bend the surface. Adding them
+together was the only way to get the real set, and nothing in the interface
+told you to.
+
+The same shape turned up twice more in the same pass, so it is a family and not
+an anecdote. The left column's SYSTEM block and the right panel's PIPELINE
+block were the same four steps written twice, with "4 constrained numbers"
+appearing verbatim in both.
+
+---
+
+## The second copy was the stale one, and it disagreed with itself
+
+The tool shipped `src/data/tested-on.json` and the case page publishes the same
+table from `raw-responses.json`. They did not agree:
+
+| | tool | case page |
+|---|---|---|
+| knit rigidity | 0.52 | 0.48 |
+| flat rigidity | 0.50 | 0.45 |
+
+The case page's own limits section names those exact two figures: *"On an
+earlier session I recorded knit rigidity at 0.52 and the control at 0.50. I did
+not keep those responses... Every number on this page comes from runs I kept."*
+So the tool was still shipping, under a `_provenance` field reading "Unedited
+output... Nothing here is estimated", the two numbers the case page explicitly
+disowns as unkept.
+
+Worse, the tool's copy contradicted itself. Its `_finding` said *"Knit and
+cotton share their physical reading and are told apart only by colour"*, while
+the table directly above it showed knit at 0.52 against cotton at 0.48. They do
+not share it in the tool's own numbers. That sentence was true of the case
+page's data and had been carried across without its figures.
+
+**Duplicated evidence does not stay duplicated.** One copy gets re-measured and
+the other keeps its old numbers under a claim of provenance, and the summary
+sentence travels with the prose rather than with the data it describes. The
+copy to keep is the one that cites something a reader can open: the case page's
+figures come with timestamps and HTTP statuses in a published file.
+
+---
+
 ## Open
 
 ### What the seven steps did

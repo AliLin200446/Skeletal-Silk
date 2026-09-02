@@ -35,7 +35,7 @@ export default function LeftPanel() {
           14px, the largest that fits here, would answer a layout question with
           a number and make the column easier to leave alone later. It holds at
           11px so the mismatch stays visible. */}
-      <div style={{padding:'22px 16px 18px', borderBottom:'0.5px solid rgba(255,255,255,0.1)'}}>
+      <div style={{padding:'18px 16px 14px', borderBottom:'0.5px solid rgba(255,255,255,0.1)'}}>
         <div style={{fontSize:11,fontWeight:500,letterSpacing:'0.24em',color:'#fff',lineHeight:1}}>
           SKELETAL SILK
         </div>
@@ -54,8 +54,8 @@ export default function LeftPanel() {
       }}>
 
         {/* Concept */}
-        <div style={{paddingTop:22}}>
-          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:14}}>
+        <div style={{paddingTop:15}}>
+          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:9}}>
             WHAT IT DOES
           </div>
           <div style={{...BODY,color:'rgba(255,255,255,0.7)',lineHeight:1.7}}>
@@ -65,11 +65,11 @@ export default function LeftPanel() {
         </div>
 
         {/* System */}
-        <div style={{paddingTop:22}}>
-          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:16}}>
+        <div style={{paddingTop:15}}>
+          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:10}}>
             SYSTEM
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:11}}>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
             {[
               ['01', 'INPUT',    'photo, swatch, or text'],
               ['02', 'READ',     '4 constrained numbers, not prose'],
@@ -91,19 +91,34 @@ export default function LeftPanel() {
         </div>
 
         {/* Interaction */}
-        <div style={{paddingTop:22}}>
-          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:16}}>
+        <div style={{paddingTop:15}}>
+          <div style={{...HEAD,color:'rgba(255,255,255,0.55)',marginBottom:10}}>
             INTERACTION
           </div>
-          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {/* One list, and it is the first complete one. There were two: this
+              column had DRAG, SCROLL, MOUSE and SLIDERS, the panel had CLICK,
+              SHIFT/CMD, DRAG, SLIDERS and CMD-Z. Two entries appeared in both
+              and neither list held everything, so the only way to learn what
+              the interface does was to add them together, and nothing said to.
+              See NOTES: a feature written twice by the same person is a sign
+              the two halves were never read together.
+
+              Order is the order a user meets them: look at the sample, pick a
+              layer, change a number, undo it. */}
+          <div style={{display:'flex',flexDirection:'column',gap:7}}>
             {[
               ['DRAG',    'Orbit mesh'],
               ['SCROLL',  'Zoom'],
               ['MOUSE',   'Bend surface'],
+              ['CLICK',   'Select layer'],
+              // "SHIFT / CMD" and "Multi-select" together overrun 164px, and
+              // the modifier is the half that has to stay exact.
+              ['SHIFT',   'Multi-select'],
               // "Live GLSL uniforms" needs 119px beside a 57px key in a 164px
               // column. Dropping the word that was doing least is the smaller
               // change; the alternative is stacking the pair, which is layout.
               ['SLIDERS', 'GLSL uniforms'],
+              ['CMD Z',   'Undo, redo'],
             ].map(([k,v]) => (
               <div key={k} style={{display:'flex',justifyContent:'space-between',gap:8}}>
                 <span style={{...LABEL,letterSpacing:'0.1em',color:'rgba(255,255,255,0.62)'}}>{k}</span>
@@ -116,7 +131,7 @@ export default function LeftPanel() {
         </div>
 
         {/* Credit */}
-        <div style={{paddingTop:22,paddingBottom:28}}>
+        <div style={{paddingTop:15,paddingBottom:18}}>
           <div style={{...LABEL,letterSpacing:'0.1em',color:'rgba(255,255,255,0.5)',lineHeight:1.8}}>
             ALI LIN · NYU IMA 2026<br/>
             ALILINLAB.COM

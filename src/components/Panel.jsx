@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { useStore, selectPrimary, selectImageSrc, hasReading } from '../store'
+import { useStore, selectPrimary, selectImageSrc } from '../store'
 import {
   analyseFabric, fileToBase64, imageUrlToBase64,
   InvalidAnalysisError,
@@ -9,7 +9,6 @@ import {
   RateLimitedError, AnalysisCancelledError, MAX_CONCURRENT,
 } from '../utils/requests'
 import { PRESETS } from '../data/presets'
-import TESTED_ON from '../data/tested-on.json'
 import { RATES, estimateUsd } from '../data/rates'
 import { emit } from '../utils/lab'
 import LayerList from './LayerList'
@@ -47,9 +46,6 @@ export default function Panel() {
 
   const primaryImage = selectImageSrc({ images }, primary)
   const busy = primary?.status === 'analysing'
-  // Whether the numbers on screen are a reading or a stored set. Two things
-  // downstream claim they are a reading; both now ask this first.
-  const read = hasReading(primary)
   // Counted off the layers rather than the request map so it re-renders on its
   // own. The two cannot drift: a layer is 'analysing' exactly while it owns a
   // live requestId.
@@ -345,67 +341,22 @@ export default function Panel() {
           minWidth: 220,
         }}
       >
-        {/* The vision to parameters step is the whole mechanism, so it leads
-            the panel rather than sitting in a corner readout.
+        {/* PIPELINE was here: 313px, no controls, and the same four steps the
+            left column already lists under SYSTEM, down to "4 constrained
+            numbers" appearing verbatim in both. The left column keeps them,
+            because how the tool works is documentation and this panel is the
+            instrument.
 
-            All three cells report the same emptiness the same way. The first
-            one always did: no thumbnail, an em rule, and a sub line naming the
-            thing that has not happened. The second did not, and showed the
-            opening cotton values under a heading that reads CLAUDE READS, so
-            the panel's most prominent claim was the one thing on screen that
-            was false. The third did not either: its sub said the shader was
-            rendering live, which is true, in a row of three that together
-            implied a pipeline nothing had yet travelled. */}
-        <section className="panel-section">
-          <div className="section-label">PIPELINE</div>
-          <div className="flow">
-            <div className="flow-step">
-              {primaryImage
-                ? <img src={primaryImage} alt="current input" className="flow-thumb" />
-                : <div className="flow-thumb flow-thumb-empty">{'—'}</div>}
-              <div className="flow-body">
-                <div className="flow-title">YOUR PHOTO</div>
-                <div className="flow-sub">{primaryImage ? 'sent to Claude Vision' : 'upload or pick a swatch'}</div>
-              </div>
-            </div>
-            <div className="flow-arrow">↓</div>
-            <div className="flow-step">
-              <div className="flow-nums">
-                {read
-                  ? <>
-                      {[primary.params.rigidity, primary.params.flow, primary.params.specular]
-                        .map((v, i) => <span key={i}>{v.toFixed(2)}</span>)}
-                      <span className="flow-chip" style={{
-                        background: '#' + primary.params.color
-                          .map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join(''),
-                      }} />
-                    </>
-                  : <span>{'—'}</span>}
-              </div>
-              <div className="flow-body">
-                <div className="flow-title">CLAUDE READS</div>
-                <div className="flow-sub">
-                  {read ? '4 constrained numbers'
-                    : busy ? 'reading now'
-                    : 'nothing read yet'}
-                </div>
-              </div>
-            </div>
-            <div className="flow-arrow">↓</div>
-            <div className="flow-step">
-              <div className="flow-uniforms">uRigidity<br />uFlow<br />uSpecular<br />uColor</div>
-              <div className="flow-body">
-                <div className="flow-title">SHADER</div>
-                {/* The uniform names are a fixed wiring, true before anything
-                    is read, so they stay. What changes is what is flowing
-                    through them. */}
-                <div className="flow-sub">
-                  {read ? 'rendering the reading, left' : 'rendering stored values, left'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+            What it also carried was a state readout, and that was the fifth
+            place the same three numbers appeared after one analysis. It was
+            the one you could not touch, so it is the one that went.
+
+            Its honest empty state does not go with it. "nothing read yet" was
+            built in the first pass, when this cell was showing the opening
+            cotton values under a heading reading CLAUDE READS. That sentence
+            now sits in the UNIFORMS heading beside the LIVE / CACHED marker,
+            which was always making the same statement: where the three numbers
+            in front of you came from. */}
 
         <LayerList />
 
@@ -489,6 +440,15 @@ export default function Panel() {
             Assumes the input is a material. It reads properties, it does not
             verify the photo is fabric, and will answer confidently for a
             drawing or a landscape.
+            {/* All that survives of the TESTED ON table. Someone doubting a
+                reading should be able to reach the evidence; they should not
+                have to scroll past 466px of it to reach the upload button. The
+                case page publishes the same four measurements against a file
+                with timestamps and HTTP statuses, which is the version worth
+                pointing at. */}
+            {' '}
+            <a className="ext" href="https://alilinlab.com/work/skeletal-silk"
+              target="_blank" rel="noreferrer">See what it returned for four known swatches.</a>
           </div>
 
           {/* Three outcomes, three treatments, because they are three
@@ -516,36 +476,6 @@ export default function Panel() {
 
         <LayerInspector />
 
-        {/* Unedited API output, see data/tested-on.json. */}
-        <section className="panel-section">
-          <div className="section-label">TESTED ON</div>
-          <div className="tested-head">
-            <span />
-            <span>RIG</span><span>FLW</span><span>SPC</span>
-          </div>
-          {TESTED_ON.fabrics.map((r) => (
-            <div className="tested-row" key={r.label}>
-              <span className="tested-label">{r.label}<em>{r.note}</em></span>
-              <span>{r.rigidity.toFixed(2)}</span>
-              <span>{r.flow.toFixed(2)}</span>
-              <span>{r.specular.toFixed(2)}</span>
-            </div>
-          ))}
-          <div className="tested-subhead">FLAT SWATCH · CONTROL</div>
-          {TESTED_ON.control.map((r) => (
-            <div className="tested-row tested-row-muted" key={r.label}>
-              <span className="tested-label">{r.label}<em>{r.note}</em></span>
-              <span>{r.rigidity.toFixed(2)}</span>
-              <span>{r.flow.toFixed(2)}</span>
-              <span>{r.specular.toFixed(2)}</span>
-            </div>
-          ))}
-          <div className="tested-note">
-            Brocade separates on all three. Knit and cotton share a physical
-            reading and are told apart only by colour. The flat control
-            returns a generic mid answer, which is what no texture looks like.
-          </div>
-        </section>
 
         {/* Measured, not modelled. Every number here is a count this session
             actually produced; nothing is projected or extrapolated.
@@ -592,19 +522,6 @@ export default function Panel() {
           </div>
         </section>
         </Reveal>
-
-        <section className="panel-section">
-          <div className="section-label">INTERACTION</div>
-          <div className="instructions">
-            <div>CLICK → SELECT LAYER</div>
-            <div>SHIFT / CMD → MULTI-SELECT</div>
-            <div>DRAG → ORBIT</div>
-            {/* Shortened for the same reason as the left panel's copy of this
-                line: 28 characters at the label size overrun 198px. */}
-            <div>SLIDERS → GLSL UNIFORMS</div>
-            <div>CMD Z / SHIFT → UNDO, REDO</div>
-          </div>
-        </section>
       </div>
     </>
   )
