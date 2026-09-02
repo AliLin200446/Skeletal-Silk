@@ -324,6 +324,34 @@ by the result itself.
 
 ---
 
+## Refuse before you write
+
+`handlePreset` changed the name and thumbnail before `runOnPrimary` decided
+whether to refuse, so a cooldown left the layer renamed with the old numbers.
+Same shape as the snapshot boundary: the check has to sit before the first
+visible write, not before the network call.
+
+That makes it the second instance of one rule, not two rules. The first was
+`pushHistory` running inside `runOnPrimary`, after a swatch click had already
+written the name and thumbnail, so undo produced COTTON's identity beside the
+previous numbers. Both produced the same artefact from the same mistake:
+something that has to happen *before* the user can see a change was placed
+next to the network call instead, because that is where the code that cares
+about it lives.
+
+The fix has the same shape too. `refusalFor` is a pure predicate that reserves
+nothing and stamps no cooldown, so the entry points can ask it before they
+write and `beginRequest` can ask it where it always did. One place decides, two
+places ask. Splitting the rule instead of the question is what lets the two
+answers drift.
+
+**Test:** a refusal must leave the layer byte-identical. Point a preset at a
+layer whose name and thumbnail differ from that preset, and check both after.
+A refusal tested on a layer that already holds that swatch proves nothing, for
+the reason in the section above.
+
+---
+
 ## Open
 
 ### What the seven steps did
