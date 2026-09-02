@@ -14,6 +14,7 @@ import { RATES, estimateUsd } from '../data/rates'
 import { emit } from '../utils/lab'
 import LayerList from './LayerList'
 import LayerInspector from './LayerInspector'
+import Reveal from './Reveal'
 
 export default function Panel() {
   const fileRef = useRef()
@@ -408,6 +409,12 @@ export default function Panel() {
 
         <LayerList />
 
+        {/* Nothing has happened yet, so there is nothing to undo. These were
+            the two largest button shapes on the first screen and both opened
+            disabled, which is a promise the panel could not keep. Redo is in
+            the condition because undoing back to the start empties `past`
+            while `future` still holds everything. */}
+        <Reveal when={canUndo || canRedo}>
         <section className="panel-section">
           <div className="history-row">
             <button className="btn" disabled={!canUndo} onClick={() => travel(undo, 'UNDO')}>UNDO</button>
@@ -415,6 +422,7 @@ export default function Panel() {
           </div>
           {timeNote && <div className="status muted" style={{ marginTop: 6 }}>· {timeNote}</div>}
         </section>
+        </Reveal>
 
         <section className="panel-section">
           <div className="section-label">SWATCHES</div>
@@ -540,7 +548,18 @@ export default function Panel() {
         </section>
 
         {/* Measured, not modelled. Every number here is a count this session
-            actually produced; nothing is projected or extrapolated. */}
+            actually produced; nothing is projected or extrapolated.
+
+            Held back until two request-shaped things have happened. One event
+            is an event; two is a session, and only then does a column of
+            counts answer a question anyone has. It opened at all zeros under
+            794px of explanation, the tallest section in the panel, 547px of
+            which is prose about how the counting works.
+
+            Cancellations and refusals count towards the two. A user who fires
+            once and cancels once has the most confusing spend in the app, and
+            this is the section that explains it. */}
+        <Reveal when={usage.landed + usage.cancelled + usage.refused >= 2}>
         <section className="panel-section">
           <div className="section-label">USAGE THIS SESSION</div>
           <div className="usage-grid">
@@ -572,6 +591,7 @@ export default function Panel() {
             never hold.
           </div>
         </section>
+        </Reveal>
 
         <section className="panel-section">
           <div className="section-label">INTERACTION</div>

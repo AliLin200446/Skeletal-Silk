@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore, selectImageSrc, MAX_LAYERS } from '../store'
 import { cancelLayer, cancelRequest } from '../utils/requests'
+import Reveal from './Reveal'
 
 const STATUS_GLYPH = {
   idle: '',
@@ -44,6 +45,15 @@ export default function LayerList() {
         <span className="layer-count">{layers.length} / {MAX_LAYERS}</span>
       </div>
 
+      {/* The list, not the section. "+ ADD LAYER" has to stay reachable, or
+          there is no way to reach the second layer that makes the list worth
+          having. With one layer the rows say nothing the rest of the panel is
+          not already saying: the thumbnail is in the pipeline's first cell and
+          the drop zone, the numbers are in the second cell, and the analysing
+          state, its cancel control and the cancelled and error lines are all
+          in INPUT. The one thing that is only here is the layer's name, which
+          is UNTITLED until the user gives it one. */}
+      <Reveal when={layers.length > 1}>
       <div className="layer-list">
         {layers.map((layer, i) => {
           const src = selectImageSrc({ images }, layer)
@@ -126,6 +136,7 @@ export default function LayerList() {
           )
         })}
       </div>
+      </Reveal>
 
       <button
         className="btn full-width layer-add"

@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useStore, selectPrimary } from '../store'
+import Reveal from './Reveal'
 
 // Whether the selected layers agree on a value. Without this the panel shows
 // the first selected layer's number and says nothing about the rest, which
@@ -75,6 +76,9 @@ function ParamBar({ label, value }) {
 export default function LayerInspector() {
   const primary = useStore(selectPrimary)
   const selected = useSelectedLayers()
+  // Local, and deliberately not in the store: which panes a reader has opened
+  // is not part of the document and must never reach an undo snapshot.
+  const [showRaw, setShowRaw] = useState(false)
   if (!primary) return null
 
   const selectedCount = selected.length
@@ -139,11 +143,21 @@ export default function LayerInspector() {
           <span className="color-hex">{colorHex.toUpperCase()}</span>
         </div>
 
-        <pre className="raw-json">{primary.rawJson}</pre>
-        <div className="uniform-map-label">the model&rsquo;s reading, wired straight to the shader&rsquo;s uniforms</div>
-        <div className="uniform-map">
-          rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
-        </div>
+        {/* 311px of reference for a reader who wants to take the shader
+            somewhere else. Everyone else has already got the answer from the
+            three bars above it. On request rather than by default. */}
+        <button className="link-btn disclosure" onClick={() => setShowRaw((v) => !v)}>
+          {showRaw ? 'HIDE RAW RESPONSE' : 'SHOW RAW RESPONSE'}
+        </button>
+        <Reveal when={showRaw}>
+          <div className="disclosure-body">
+            <pre className="raw-json">{primary.rawJson}</pre>
+            <div className="uniform-map-label">the model&rsquo;s reading, wired straight to the shader&rsquo;s uniforms</div>
+            <div className="uniform-map">
+              rigidity → uRigidity · flow → uFlow · specular → uSpecular · color → uColor
+            </div>
+          </div>
+        </Reveal>
       </section>
     </>
   )
