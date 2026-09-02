@@ -340,3 +340,16 @@ export const selectPrimary = (s) =>
 
 export const selectImageSrc = (s, layer) =>
   layer?.imageId ? (s.images[layer.imageId] ?? null) : null
+
+// Did Claude actually read this layer's image? Only 'LIVE' means yes.
+//
+// 'CACHED' is a stored value: the opening cotton set, or a swatch's recorded
+// numbers shown for the moment while its live analysis is in flight. 'FALLBACK'
+// means a request did go out and came back unreadable, so the previous valid
+// numbers were kept, and those were not read from this image either.
+//
+// One definition, because two places make the same claim about these numbers:
+// the pipeline cell headed CLAUDE READS, and the export, whose file says the
+// values were read by Claude Vision. Both were making it on cold start, when
+// nothing had been read at all.
+export const hasReading = (layer) => layer?.source === 'LIVE'

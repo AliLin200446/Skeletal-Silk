@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useStore, selectPrimary } from '../store'
+import { useStore, selectPrimary, hasReading } from '../store'
 import vertGLSL from '../shaders/skeletal.vert.glsl?raw'
 import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
 
@@ -13,12 +13,13 @@ function buildExport({ rigidity, flow, specular, color }) {
    Skeletal Silk — material export
    skeletal-silk.alilinlab.com
 
-   The four values below were read from your source image by Claude Vision.
-   They are the whole payload: the GLSL underneath is fixed, and these
-   numbers are what make it this material rather than another one.
+   The four values below came from Claude Vision's reading of your source
+   image, plus any slider you moved afterwards. They are the whole payload:
+   the GLSL underneath is fixed, and these numbers are what make it this
+   material rather than another one.
    ──────────────────────────────────────────────────────────────────── */
 
-/* 1. THE READING — the model's output, verbatim.
+/* 1. THE READING, as the tool is showing it now.
       rigidity, flow and specular are 0..1; color is linear-ish sRGB 0..1. */
 const materialParams = ${params}
 
@@ -82,6 +83,12 @@ export { materialParams, uniforms, SKELETAL_SILK_VERT, SKELETAL_SILK_FRAG }
 export default function ExportShader() {
   const [state, setState] = useState('idle')
   const primary = useStore(selectPrimary)
+  // The export's own file says these values came from Claude's reading. Until
+  // one has landed that is untrue, and on cold start it exported the opening
+  // cotton set under exactly that sentence. The button is the honest place to
+  // stop it, because the alternative is a file that lies about its contents
+  // once it is out of the tool and nothing here can correct it.
+  const read = hasReading(primary)
   const { rigidity, flow, specular, color } = primary.params
 
   const handleExport = useCallback(async () => {
@@ -105,12 +112,16 @@ export default function ExportShader() {
 
   return (
     <div className="export-dock">
-      <button className="export-btn" onClick={handleExport}>
+      <button className="export-btn" onClick={handleExport} disabled={!read}>
         {state === 'copied' ? '✓  COPIED TO CLIPBOARD'
           : state === 'downloaded' ? '✓  DOWNLOADED'
           : 'EXPORT SHADER + PARAMETERS'}
       </button>
-      <div className="export-hint">GLSL plus the four values read from your image</div>
+      <div className="export-hint">
+        {read
+          ? 'GLSL plus the four values read from your image'
+          : 'Nothing has been read yet. Pick a swatch or upload a photo, and this exports the shader with the numbers Claude returns.'}
+      </div>
       <div className="sample-caption">
         preview sample — a neutral surface driven by the four uniforms; the
         reading and the export are the point, not photoreal cloth

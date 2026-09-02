@@ -1,11 +1,11 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { useStore, selectPrimary, selectImageSrc } from '../store'
+import { useStore, selectPrimary, selectImageSrc, hasReading } from '../store'
 import {
   analyseFabric, fileToBase64, imageUrlToBase64,
   InvalidAnalysisError,
 } from '../utils/analyseFabric'
 import {
-  beginRequest, endRequest, isLive, cancelRequest, touchedFor,
+  beginRequest, endRequest, isLive, cancelRequest, touchedFor, refusalFor,
   RateLimitedError, AnalysisCancelledError, MAX_CONCURRENT,
 } from '../utils/requests'
 import { PRESETS } from '../data/presets'
@@ -46,6 +46,9 @@ export default function Panel() {
 
   const primaryImage = selectImageSrc({ images }, primary)
   const busy = primary?.status === 'analysing'
+  // Whether the numbers on screen are a reading or a stored set. Two things
+  // downstream claim they are a reading; both now ask this first.
+  const read = hasReading(primary)
   // Counted off the layers rather than the request map so it re-renders on its
   // own. The two cannot drift: a layer is 'analysing' exactly while it owns a
   // live requestId.
@@ -62,9 +65,14 @@ export default function Panel() {
     try {
       ({ requestId, controller } = beginRequest(id))
     } catch (err) {
-      // Refused before any money was spent. Not an error state for the layer.
+      // Refused before any money was spent. Not an error state for the layer,
+      // and not a state change of any kind: the cooldown and the concurrency
+      // cap decided that nothing should happen, so nothing does. `status` is
+      // deliberately not in this patch. It used to be reset to 'idle' here,
+      // which wiped the ⊘ off a layer the user had just cancelled, so a refusal
+      // erased the record of an action it had nothing to do with.
       recordRefused()
-      patchLayer(id, { status: 'idle', error: err.message })
+      patchLayer(id, { error: err.message })
       return
     }
 
@@ -207,8 +215,28 @@ export default function Panel() {
     recordCancelled()
   }, [primary, patchLayer, recordCancelled])
 
+  // Asked before anything visible moves. beginRequest asks the same questions
+  // from the same predicate, but it asks them inside runOnPrimary, by which
+  // time the caller has already swapped the layer's image, renamed it and
+  // pushed a history entry. A refusal that renamed the layer to BROCADE and
+  // left COTTON's numbers beside the name was not refusing anything; it was
+  // producing exactly the half-applied state the undo harness exists to catch.
+  //
+  // The emit lives here as well as in beginRequest because the lab stream has
+  // to record the refusal wherever the decision was actually taken. The
+  // decision itself is in one place, refusalFor, so the two cannot drift.
+  const refusedEarly = useCallback((id) => {
+    const refusal = refusalFor(id)
+    if (!refusal) return false
+    emit('refused', { layerId: id, reason: refusal.reason })
+    recordRefused()
+    patchLayer(id, { error: refusal.message })
+    return true
+  }, [recordRefused, patchLayer])
+
   const handlePreset = useCallback(async (preset) => {
     if (!primary) return
+    if (refusedEarly(primary.id)) return
     // Before the first visible write. The name and thumbnail change here, so
     // the snapshot has to precede them or undo leaves the identity behind.
     pushHistory()
@@ -221,7 +249,7 @@ export default function Panel() {
     } catch (err) {
       patchLayer(primary.id, { status: 'error', error: err.message })
     }
-  }, [primary, putImage, patchLayer, runOnPrimary, pushHistory])
+  }, [primary, putImage, patchLayer, runOnPrimary, pushHistory, refusedEarly])
 
   // No silent rejections: a wrong file type or an oversized image throws a
   // readable message rather than returning quietly.
@@ -229,8 +257,13 @@ export default function Panel() {
     if (!primary) return
     try {
       // After validation, before the first visible write: a rejected file
-      // changes nothing, so it must not leave an undo entry behind.
+      // changes nothing, so it must not leave an undo entry behind. A refused
+      // one changes nothing either, and the check sits on the same boundary
+      // for the same reason. Validation runs first so that a dropped PDF is
+      // told it is a PDF rather than told to wait eight seconds and then told
+      // it is a PDF.
       const { base64, mediaType } = await fileToBase64(file)
+      if (refusedEarly(primary.id)) return
       pushHistory()
       const imageId = putImage(`data:${mediaType};base64,${base64}`)
       patchLayer(primary.id, { imageId })
@@ -238,7 +271,7 @@ export default function Panel() {
     } catch (err) {
       patchLayer(primary.id, { status: 'error', error: err.message })
     }
-  }, [primary, text, putImage, patchLayer, runOnPrimary, pushHistory])
+  }, [primary, text, putImage, patchLayer, runOnPrimary, pushHistory, refusedEarly])
 
   // No push here. The text path's first visible write is the first keystroke,
   // not the submit, and setDescription already opened the entry there.
@@ -312,7 +345,16 @@ export default function Panel() {
         }}
       >
         {/* The vision to parameters step is the whole mechanism, so it leads
-            the panel rather than sitting in a corner readout. */}
+            the panel rather than sitting in a corner readout.
+
+            All three cells report the same emptiness the same way. The first
+            one always did: no thumbnail, an em rule, and a sub line naming the
+            thing that has not happened. The second did not, and showed the
+            opening cotton values under a heading that reads CLAUDE READS, so
+            the panel's most prominent claim was the one thing on screen that
+            was false. The third did not either: its sub said the shader was
+            rendering live, which is true, in a row of three that together
+            implied a pipeline nothing had yet travelled. */}
         <section className="panel-section">
           <div className="section-label">PIPELINE</div>
           <div className="flow">
@@ -328,19 +370,24 @@ export default function Panel() {
             <div className="flow-arrow">↓</div>
             <div className="flow-step">
               <div className="flow-nums">
-                {primary
-                  ? [primary.params.rigidity, primary.params.flow, primary.params.specular]
-                      .map((v, i) => <span key={i}>{v.toFixed(2)}</span>)
+                {read
+                  ? <>
+                      {[primary.params.rigidity, primary.params.flow, primary.params.specular]
+                        .map((v, i) => <span key={i}>{v.toFixed(2)}</span>)}
+                      <span className="flow-chip" style={{
+                        background: '#' + primary.params.color
+                          .map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join(''),
+                      }} />
+                    </>
                   : <span>{'—'}</span>}
-                <span className="flow-chip" style={{
-                  background: primary
-                    ? '#' + primary.params.color.map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('')
-                    : 'transparent',
-                }} />
               </div>
               <div className="flow-body">
                 <div className="flow-title">CLAUDE READS</div>
-                <div className="flow-sub">4 constrained numbers</div>
+                <div className="flow-sub">
+                  {read ? '4 constrained numbers'
+                    : busy ? 'reading now'
+                    : 'nothing read yet'}
+                </div>
               </div>
             </div>
             <div className="flow-arrow">↓</div>
@@ -348,7 +395,12 @@ export default function Panel() {
               <div className="flow-uniforms">uRigidity<br />uFlow<br />uSpecular<br />uColor</div>
               <div className="flow-body">
                 <div className="flow-title">SHADER</div>
-                <div className="flow-sub">rendering live, left</div>
+                {/* The uniform names are a fixed wiring, true before anything
+                    is read, so they stay. What changes is what is flowing
+                    through them. */}
+                <div className="flow-sub">
+                  {read ? 'rendering the reading, left' : 'rendering stored values, left'}
+                </div>
               </div>
             </div>
           </div>
@@ -431,13 +483,26 @@ export default function Panel() {
             drawing or a landscape.
           </div>
 
-          {/* A refusal is not a failure. Being told to wait 2 seconds, or that
-              three analyses are already running, leaves the layer idle and
-              nothing broken, so it does not get to use the oxblood. */}
+          {/* Three outcomes, three treatments, because they are three
+              different facts about the user's money and their intent.
+
+              An error broke something: oxblood, ✕.
+              A cancel is something the user did, and the request had already
+              left the machine, so it may well have been billed: ⊘, muted, and
+              it sits above this in its own line.
+              A refusal is the tool holding the request back. Nothing left the
+              machine and nothing was spent, which is the part worth saying out
+              loud, so the marker is the words rather than a glyph nobody has a
+              key for. The left rule is the one .boundary-note already uses for
+              the tool talking about its own limits.
+
+              These two shared .status.muted until now, differing only in a
+              leading ⊘ against a leading · at 9px in the palette's lowest
+              contrast, which is not a distinction anyone was going to make. */}
           {primary?.error && (
             primary.status === 'error'
               ? <div className="status error" style={{ marginTop: 8 }}>✕ {primary.error}</div>
-              : <div className="status muted" style={{ marginTop: 8 }}>· {primary.error}</div>
+              : <div className="status held" style={{ marginTop: 8 }}>NOT SENT · {primary.error}</div>
           )}
         </section>
 

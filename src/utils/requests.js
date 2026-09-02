@@ -64,27 +64,49 @@ export function isLayerBusy(layerId) {
   return false
 }
 
-// Throws RateLimitedError rather than returning null: every rejection here has
-// a reason the user needs to read, and a null would lose it.
-export function beginRequest(layerId) {
+// Would a request for this layer be refused right now, and why? Pure: it
+// reserves nothing, stamps no cooldown and emits nothing, so a caller can ask
+// before it has changed anything the user can see.
+//
+// It exists because the answer was previously only available from inside
+// beginRequest, which runs after the caller has already written the layer's
+// image and name. A refusal that had already renamed the layer was not a
+// refusal, whatever the message said.
+//
+// `message` is what the panel shows. `reason` is the short form the lab stream
+// records. Both come from here so the two can never describe different rules.
+export function refusalFor(layerId) {
   // NEVER FIRED as of 2026-08-07. Unreachable from the UI today: the preset
   // buttons carry disabled={busy}, so a second click on an analysing layer
   // does not reach this function at all. Kept as defence in depth, because the
   // text-input and drop paths could change. Treat it as untested code.
   if (isLayerBusy(layerId)) {
-    emit('refused', { layerId, reason: 'layer already analysing' })
-    throw new RateLimitedError('THIS LAYER IS ALREADY ANALYSING')
+    return { message: 'THIS LAYER IS ALREADY ANALYSING', reason: 'layer already analysing' }
   }
   if (inflight.size >= MAX_CONCURRENT) {
-    emit('refused', { layerId, reason: `concurrency cap, ${inflight.size} of ${MAX_CONCURRENT} in flight` })
-    throw new RateLimitedError(`${MAX_CONCURRENT} ANALYSES AT ONCE IS THE LIMIT — WAIT FOR ONE TO LAND`)
+    return {
+      message: `${MAX_CONCURRENT} ANALYSES AT ONCE IS THE LIMIT — WAIT FOR ONE TO LAND`,
+      reason: `concurrency cap, ${inflight.size} of ${MAX_CONCURRENT} in flight`,
+    }
   }
   const since = Date.now() - (lastRequestAt.get(layerId) ?? 0)
   if (since < COOLDOWN_MS) {
-    emit('refused', { layerId, reason: `cooldown, ${Math.ceil((COOLDOWN_MS - since) / 1000)}s remaining` })
-    throw new RateLimitedError(
-      `EASY — WAIT ${Math.ceil((COOLDOWN_MS - since) / 1000)}S BEFORE RE-ANALYSING THIS LAYER`,
-    )
+    const left = Math.ceil((COOLDOWN_MS - since) / 1000)
+    return {
+      message: `WAIT ${left}S BEFORE RE-ANALYSING THIS LAYER`,
+      reason: `cooldown, ${left}s remaining`,
+    }
+  }
+  return null
+}
+
+// Throws RateLimitedError rather than returning null: every rejection here has
+// a reason the user needs to read, and a null would lose it.
+export function beginRequest(layerId) {
+  const refusal = refusalFor(layerId)
+  if (refusal) {
+    emit('refused', { layerId, reason: refusal.reason })
+    throw new RateLimitedError(refusal.message)
   }
   const requestId = nextId()
   const controller = new AbortController()
