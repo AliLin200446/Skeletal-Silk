@@ -503,22 +503,26 @@ export default function Panel() {
             <span>CANCELLED</span><span>{usage.cancelled}</span>
             <span>REFUSED</span><span>{usage.refused}</span>
           </div>
-          <div className="usage-note">
-            Landed analyses report their own token counts, passed through from
-            the API. Cancelled requests left this machine and may well have been
-            billed upstream, but their response never arrived, so their tokens
-            are unknown and are not in the totals above. Refused ones were
-            blocked by the cooldown or the concurrency cap before anything was
-            sent, and cost nothing.
-          </div>
+          {/* The counts above and the rate below are facts about this session
+              and this model, and they are only meaningful inside the tool.
+              547px of prose explaining why the three counts are separate, why
+              a cancelled request's tokens are unknown, and why no remaining
+              balance is shown is a method, and a method is the case page's
+              job. Same shape as the tested-on table, same move, same one line
+              back to it. */}
           <div className="usage-rate">
             {RATES.model} · ${RATES.inputPerMTok.toFixed(2)} per MTok in ·
             ${RATES.outputPerMTok.toFixed(2)} per MTok out
+            {/* Stays. It is the provenance of a number this panel still puts
+                on screen, and the rule here is that a displayed figure says
+                where it came from. */}
+            <br />from {RATES.source}, checked {RATES.verified}
           </div>
           <div className="usage-note">
-            Rate from {RATES.source}, checked {RATES.verified}. Remaining credit
-            is not shown: reading it needs an admin key, which a browser should
-            never hold.
+            Cancelled and refused requests are counted apart because they cost
+            differently.{' '}
+            <a className="ext" href="https://alilinlab.com/work/skeletal-silk"
+              target="_blank" rel="noreferrer">How this is counted.</a>
           </div>
         </section>
         </Reveal>

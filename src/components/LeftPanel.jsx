@@ -39,9 +39,11 @@ export default function LeftPanel() {
         <div style={{fontSize:11,fontWeight:500,letterSpacing:'0.24em',color:'#fff',lineHeight:1}}>
           SKELETAL SILK
         </div>
-        <div style={{marginTop:9,...BODY,color:'rgba(255,255,255,0.62)'}}>
-          reads a fabric photo into four numbers that drive a material shader
-        </div>
+        {/* A one-line summary sat here, and WHAT IT DOES below is the same
+            sentence with three more facts in it: who reads the photo, that you
+            can carry the result away, and which shader. The subset went. The
+            title now runs straight into the fuller sentence instead of into a
+            shorter draft of it. */}
       </div>
 
       {/* Main content — flex grow, space-between */}

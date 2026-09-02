@@ -284,6 +284,7 @@ the tool was wrong:
 | `git bundle verify`: "is okay, records a complete history" | cloning it restored **0 of 21** files. The ref sat under `refs/backup/`, which `clone` does not check out |
 | `while (glyph !== '')` waiting for an analysis to land | exits immediately when the layer is idle. Reported LANDED 0 with a real API response already in hand |
 | `curl A B C \| grep -c "string"` checking three pages at once | a match on any one page counted as a pass for all three. Two of the three were still serving old copy |
+| `npx eslint src api \| tail; echo "lint ok"` | `echo "lint ok"` printed regardless of the exit code. It ran on the next line, not on success, and it printed over a real error |
 
 **Are the pass state and the fail state distinguishable?** Four times a test
 would have passed no matter what the code did:
@@ -428,6 +429,15 @@ the other keeps its old numbers under a claim of provenance, and the summary
 sentence travels with the prose rather than with the data it describes. The
 copy to keep is the one that cites something a reader can open: the case page's
 figures come with timestamps and HTTP statuses in a published file.
+
+The three divergences failed differently: two incomplete halves, two identical
+copies, and two contradictory tables. Duplication does not have one failure
+mode, it has whichever one the next edit happens to produce.
+
+That last part is the operative half. Because the failure mode is not
+predictable, **keeping two copies in sync is not an available strategy** - there
+is no single thing to watch for. One of them has to stop existing, and the one
+that survives is the one a reader can check.
 
 ---
 
