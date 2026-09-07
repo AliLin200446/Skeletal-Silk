@@ -1,14 +1,15 @@
-import { useState, useCallback } from 'react'
-import { useStore, selectPrimary, hasReading } from '../store'
-import vertGLSL from '../shaders/skeletal.vert.glsl?raw'
-import fragGLSL from '../shaders/skeletal.frag.glsl?raw'
+import { useState, useCallback } from "react";
+import { useStore, selectPrimary, hasReading } from "../store";
+import { useInstrument } from "../store/instrument";
+import vertGLSL from "../shaders/skeletal.vert.glsl?raw";
+import fragGLSL from "../shaders/skeletal.frag.glsl?raw";
 
 // What leaves the app: the shader source plus the uniform values Claude read
 // for this material. Both are required to reproduce the look elsewhere — the
 // shader alone is identical for every material, the numbers alone are inert.
-function buildExport({ rigidity, flow, specular, color }) {
-  const v3 = color.map((c) => c.toFixed(4)).join(', ')
-  const params = JSON.stringify({ rigidity, flow, specular, color }, null, 2)
+function buildExport({ rigidity, flow, specular, color }, light, intensity) {
+  const v3 = color.map((c) => c.toFixed(4)).join(", ");
+  const params = JSON.stringify({ rigidity, flow, specular, color }, null, 2);
   return `/* ────────────────────────────────────────────────────────────────────
    Skeletal Silk — material export
    skeletal-silk.alilinlab.com
@@ -50,6 +51,9 @@ const materialParams = ${params}
 /* 3. UNIFORMS — ready to drop in. The three morph slots are pinned to this
       one material so the surface renders static rather than cross-fading. */
 const uniforms = {
+  uDim:         { value: 1 },
+  uLight:       { value: new THREE.Vector3(${light.join(", ")}) },
+  uLightIntensity: { value: ${intensity} },
   uTime:        { value: 0 },
   uRigidity:    { value: ${rigidity} },
   uFlow:        { value: ${flow} },
@@ -77,55 +81,58 @@ ${fragGLSL.trim()}
 \`
 
 export { materialParams, uniforms, SKELETAL_SILK_VERT, SKELETAL_SILK_FRAG }
-`
+`;
 }
 
 export default function ExportShader() {
-  const [state, setState] = useState('idle')
-  const primary = useStore(selectPrimary)
+  const [state, setState] = useState("idle");
+  const primary = useStore(selectPrimary);
   // The export's own file says these values came from Claude's reading. Until
   // one has landed that is untrue, and on cold start it exported the opening
   // cotton set under exactly that sentence. The button is the honest place to
   // stop it, because the alternative is a file that lies about its contents
   // once it is out of the tool and nothing here can correct it.
-  const read = hasReading(primary)
-  const { rigidity, flow, specular, color } = primary.params
+  const read = hasReading(primary);
+  const { rigidity, flow, specular, color } = primary.params;
 
   const handleExport = useCallback(async () => {
-    const text = buildExport({ rigidity, flow, specular, color })
+    const { light, intensity } = useInstrument.getState();
+    const text = buildExport(
+      { rigidity, flow, specular, color },
+      light,
+      intensity,
+    );
     try {
-      await navigator.clipboard.writeText(text)
-      setState('copied')
+      await navigator.clipboard.writeText(text);
+      setState("copied");
     } catch {
       // Clipboard can be blocked (permissions, insecure context) — fall back
       // to a download so the export never silently fails.
-      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'skeletal-silk-material.glsl.js'
-      a.click()
-      URL.revokeObjectURL(url)
-      setState('downloaded')
+      const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "skeletal-silk-material.glsl.js";
+      a.click();
+      URL.revokeObjectURL(url);
+      setState("downloaded");
     }
-    setTimeout(() => setState('idle'), 2200)
-  }, [rigidity, flow, specular, color])
+    setTimeout(() => setState("idle"), 2200);
+  }, [rigidity, flow, specular, color]);
 
   return (
     <div className="export-dock">
       <button className="export-btn" onClick={handleExport} disabled={!read}>
-        {state === 'copied' ? '✓  COPIED TO CLIPBOARD'
-          : state === 'downloaded' ? '✓  DOWNLOADED'
-          : 'EXPORT SHADER + PARAMETERS'}
+        {state === "copied"
+          ? "Copied to clipboard"
+          : state === "downloaded"
+            ? "Downloaded"
+            : "Export shader"}
       </button>
       <div className="export-hint">
         {read
-          ? 'GLSL plus the four values read from your image'
-          : 'Nothing has been read yet. Pick a swatch or upload a photo, and this exports the shader with the numbers Claude returns.'}
-      </div>
-      <div className="sample-caption">
-        preview sample — a neutral surface driven by the four uniforms; the
-        reading and the export are the point, not photoreal cloth
+          ? "Includes your material and lighting."
+          : "Available after a material reading."}
       </div>
     </div>
-  )
+  );
 }

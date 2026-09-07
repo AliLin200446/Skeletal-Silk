@@ -140,7 +140,7 @@ export async function fileToBase64(file) {
   assertUsableImage(file)
   const url = URL.createObjectURL(file)
   const img = await loadImage(url, () => URL.revokeObjectURL(url))
-  return imageToBase64(img)
+  return { ...imageToBase64(img), width: img.naturalWidth, height: img.naturalHeight }
 }
 
 // Preset swatches go through the exact same downscale + analyse path as uploads.

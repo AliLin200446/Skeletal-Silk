@@ -1,3 +1,5 @@
+uniform vec3 uLight;
+uniform float uLightIntensity;
 uniform float uSpecular;
 uniform vec3  uColor;
 uniform float uRigidity;
@@ -15,7 +17,7 @@ void main() {
 
   // Key light. Wrapped diffuse rather than plain Lambert: a hard terminator
   // is how a planet lit by a sun reads. Cloth in a studio falls off softly.
-  vec3 L1 = normalize(vec3(-0.95, 0.55, 0.30));
+  vec3 L1 = normalize(uLight);
   vec3 H1 = normalize(L1 + V);
   float wrap = 0.18;
   float d1 = max((dot(N, L1) + wrap) / (1.0 + wrap), 0.0);
@@ -63,13 +65,13 @@ void main() {
 
   // Lighting assembly — keep shadows dark
   vec3 ambient = baseColor * 0.05;
-  vec3 diffuse = baseColor * pow(d1, 1.25) * 1.00;
+  vec3 diffuse = baseColor * pow(d1, 1.25) * uLightIntensity;
   vec3 fill    = baseColor * d2;
   // Highlight no longer whitens with rigidity (another bone-era leftover): a
   // crusty surface catches the key on every ridge, so that turned dark
   // materials into white rock. Damped on rough surfaces for the same reason.
   vec3 spec    = mix(colorMix * 0.3 + 0.7, vec3(1.0), 0.35)
-                 * s1 * uSpecular * 0.60 * (1.0 - bone * 0.55);
+                 * s1 * uSpecular * 0.60 * uLightIntensity * (1.0 - bone * 0.55);
   vec3 rimCol  = mix(colorMix, vec3(0.9, 0.9, 1.0), 0.35) * rim;
 
   vec3 col = ambient + diffuse + fill + spec + rimCol;
